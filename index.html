@@ -57,10 +57,11 @@ body{background:var(--paper-2);color:var(--ink);font:15px/1.6 var(--sans);displa
 /* ステージ */
 .stage{position:relative;display:grid;place-items:center;padding:16px;min-height:0;background:var(--paper-2)}
 .stage video,.stage canvas{display:block;max-width:100%;max-height:100%;background:#fff;border:3px solid var(--ink);box-shadow:6px 6px 0 rgba(29,42,102,.18)}
-#remote{display:none;width:100%}
 #out{width:100%}
-body.in-call #remote{display:block}
-body.in-call #out{position:absolute;right:20px;bottom:20px;width:24%;min-width:150px;border-width:2px}
+#remote{position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;border:0;box-shadow:none}
+#page{display:none;width:100%}
+body.in-call #page{display:block}
+body.in-call #out{display:none}
 .copyright{position:fixed;right:max(12px, env(safe-area-inset-right, 0px));bottom:max(8px, env(safe-area-inset-bottom, 0px));z-index:5;font-family:var(--round);font-weight:700;font-size:11.5px;letter-spacing:.03em;color:var(--navy);background:rgba(244,243,239,.88);padding:2px 10px;border-radius:999px;pointer-events:none}
 .hint{position:absolute;inset:auto 0 28px;text-align:center;color:var(--muted);font-size:13px}
 body.started .hint{display:none}
@@ -157,6 +158,7 @@ dialog#help::backdrop{background:rgba(29,42,102,.45)}
 <main class="stage">
   <video id="remote" playsinline autoplay></video>
   <canvas id="out" width="854" height="480"></canvas>
+  <canvas id="page" width="1280" height="720"></canvas>
   <p class="hint">「カメラとマイクを開始」を押してください</p>
 </main>
 
@@ -425,6 +427,15 @@ z = (値 − 平均) ÷ SD</pre>
       <tr><td>落ち込み</td><td>もやもやのぼかし窓</td><td>上ほど暗いトーン、タレ線（背景と額）、砂目ノイズ</td><td>額の縦線</td><td>縦線（タレ線）は落ち込み・不安・ショック。上を暗くし霧のような質感に</td></tr>
     </table></div>
 
+    <h4>通話中のコマ割り</h4>
+    <p>相手とつながると、自分と相手の映像を別々の窓として重ねるのではなく、1ページを斜めの溝で2つのコマに割って並べます。右のコマが相手、左のコマが自分です（日本の漫画は右から読むため、相手を先に読む位置にしています）。</p>
+    <ul>
+      <li><b>顔の位置の受け渡し</b>：それぞれの端末は、自分の顔の窓の中心・半径と吹き出しの範囲を、映像の幅と高さに対する割合にして、約15回/秒で相手に送ります（PeerJS のデータ通信）。受け取った側は、この情報で相手の映像を切り抜いて配置します。</li>
+      <li><b>コマに収める計算</b>：拡大率は <code>k = 0.40 × コマの高さ ÷ 顔の半径</code> を基本にします。顔の円（半径の1.15倍、下は1.3倍）と吹き出しの範囲を合わせた長方形が、コマの内側（斜めの辺を除いた長方形）の幅・高さの94%に収まらない場合は、収まるまで縮めます。その長方形の中心をコマの中心に合わせ、拡大率と中心は0.12ずつなめらかに追従させます。コマの形と映像の縦横比が違うと隙間ができるので、隙間をなくすための拡大が1.25倍以内なら映像でコマ全体を覆います。それ以上必要なときは顔と吹き出しが切れないことを優先し、隙間はその人の場面の背景（トーン・ベタ・白）で埋めます。場面の種類も位置情報と一緒に送っています。</li>
+      <li><b>コマの形</b>：ページの余白18px、溝14px、溝の上端と下端のずれはページ幅の4.5%です。コマの枠は黒い線で描き、通話中は各端末の映像に入っていた内側のコマ枠を省いて、枠が二重にならないようにしています。</li>
+      <li><b>見せゴマ</b>：話している方のコマを広くします。<code>差 = (相手の声量 − 自分の声量) × 3</code>（−1〜1）から、相手のコマの幅の割合を <code>0.5 + 0.12 × 差</code>（0.38〜0.62）に近づけます。</li>
+      <li>相手の端末から位置情報が届かない場合（古い版など）は、相手の映像の中央に顔があるものとして配置します。</li>
+    </ul>
     <h3 id="h9">10 演出の描画方法</h3>
     <ul>
       <li><b>窓の形</b>：<code>箱の半径 = 1 / max(|cos(θ−傾き)|/ax, |sin(θ−傾き)|/ay)</code>、<code>r = R × lerp(1, 箱の半径, 四角さ) × (1 + もやもや度×0.15×揺らぎ)</code>。揺らぎは3θ・5θ・8θの正弦波の和。</li>
@@ -603,6 +614,7 @@ const S = {
   level:0, floor:-60, dbHist:[], frames:[], f0:0, speaking:false, lastVoice:-1e9, sens:0.5,
   hist:[], lastZ:null, lastZt:-1e9, sceneTxt:{ surprise:0, joy:0, tension:0, gloom:0 }, sceneTxtT:-1e9,
   bmode:"auto", bScore:{},
+  inCall:false, remote:null, bBox:null,
   faceStyle:"pen", penW:1, penHair:"line", penBody:true, bsRaw:{}, lm:null, seg:null, segOK:false, pen:null,
   deform:0.7, lineP:18, blackEps:0.36, toneTh:0.54, cleanT:0.0192, cleanDark:0.1,
 };
@@ -961,6 +973,8 @@ function loop(now){
   updateView();
   updateBalloons(now);
   draw(now/1000);
+  if (S.inCall) drawPage();
+  sendMeta(now);
   updateHud(now);
   requestAnimationFrame(loop);
 }
@@ -1690,7 +1704,7 @@ function draw(t){
   if (noiseW > 0.02) drawNoise(octx, noiseW*0.25);
 
   // 6. コマ枠
-  if (S.P.frame > 0.05 && S.vis > 0.05){
+  if (S.P.frame > 0.05 && S.vis > 0.05 && !S.inCall){   // 通話中はページのコマ枠を使う
     octx.save();
     octx.globalAlpha = S.vis*c01(S.P.frame);
     octx.lineJoin = "miter";
@@ -1701,6 +1715,7 @@ function draw(t){
   }
 
   // 7. 吹き出し
+  S.bBox = null;
   for (const b of balloons) drawBalloon(octx, b, t);
 }
 
@@ -1811,6 +1826,7 @@ function drawBalloon(ctx, b, t){
   if (b.x === null){ b.x = tx; b.y = ty; }
   b.x = lerp(b.x, tx, 0.15); b.y = lerp(b.y, ty, 0.15);
   const bx = b.x, by = b.y;
+  if (b === balloons[balloons.length-1] && b.alpha > 0.3) S.bBox = [bx - rx*1.25, by - ry*1.25, bx + rx*1.25, by + ry*1.25];
 
   const ang = Math.atan2(S.my - by, S.mx - bx);
   const edge = th => [bx + rx*Math.cos(th), by + ry*Math.sin(th)];
@@ -1997,6 +2013,115 @@ document.addEventListener("keydown", e => {
   if (bm) document.querySelector(`#bmodes button[data-b="${bm}"]`).click();
 });
 
+/* ===================== 通話中のコマ割り（自分と相手を1ページに） ===================== */
+const page = $("#page"), pctx = page.getContext("2d");
+const PW = page.width, PH = page.height;
+const PAGE = {
+  margin: 18,        // ページの余白
+  gutter: 14,        // コマとコマの間の白い溝
+  slant: 0.045,      // 斜めの溝の傾き（ページ幅に対する上下のずれ）
+  faceFill: 0.40,    // 顔の半径をコマの高さの何割にするか
+  minShare: 0.38, maxShare: 0.62,   // 相手のコマが占める幅の範囲
+};
+const PG = { share:0.5, fit:{ self:null, remote:null } };
+let dataConn = null, lastMeta = 0;
+
+/* 顔と吹き出しの位置を、映像とは別のデータ通信で相手に送る（座標は映像の幅・高さに対する割合） */
+function sendMeta(now){
+  if (!dataConn || !dataConn.open || now - lastMeta < 66) return;
+  lastMeta = now;
+  const b = S.bBox;
+  try{
+    dataConn.send({ t:"meta", cx:S.cx/W, cy:S.cy/H, r:S.R/H, lv:S.level, vis:S.vis, scene:S.scene,
+      box: b ? [b[0]/W, b[1]/H, b[2]/W, b[3]/H] : null });
+  }catch{}
+}
+function bindData(conn){
+  dataConn = conn;
+  conn.on("data", d => { if (d && d.t === "meta") S.remote = { ...d, at:performance.now() }; });
+  conn.on("close", () => { if (dataConn === conn) dataConn = null; });
+}
+function remoteSource(){
+  const v = $("#remote");
+  return (v.readyState >= 2 && v.videoWidth) ? { el:v, w:v.videoWidth, h:v.videoHeight } : null;
+}
+/* 顔（＋吹き出し）がコマにちょうど収まる拡大率と中心を求める */
+function fitInto(key, src, meta, poly){
+  // 斜めの辺を除いた内側の長方形（poly は 左上・右上・右下・左下 の順）
+  const x0 = Math.max(poly[0][0], poly[3][0]), x1 = Math.min(poly[1][0], poly[2][0]);
+  const y0 = Math.max(poly[0][1], poly[1][1]), y1 = Math.min(poly[2][1], poly[3][1]);
+  const pw = x1 - x0, ph = y1 - y0, pcx = (x0 + x1)/2, pcy = (y0 + y1)/2;
+  const m = meta || { cx:0.5, cy:0.5, r:0.3, box:null };
+  const cx = m.cx*src.w, cy = m.cy*src.h, R = Math.max(m.r*src.h, 8);
+  let ux0 = cx - R*1.15, uy0 = cy - R*1.15, ux1 = cx + R*1.15, uy1 = cy + R*1.3;
+  if (m.box){
+    ux0 = Math.min(ux0, m.box[0]*src.w); uy0 = Math.min(uy0, m.box[1]*src.h);
+    ux1 = Math.max(ux1, m.box[2]*src.w); uy1 = Math.max(uy1, m.box[3]*src.h);
+  }
+  let k = PAGE.faceFill*ph/R;
+  k = Math.min(k, pw*0.94/(ux1 - ux0), ph*0.94/(uy1 - uy0));
+  const t = { k:Math.max(k, 0.2), ux:(ux0 + ux1)/2, uy:(uy0 + uy1)/2 };
+  const f = PG.fit[key] || t;
+  f.k = lerp(f.k, t.k, 0.12); f.ux = lerp(f.ux, t.ux, 0.12); f.uy = lerp(f.uy, t.uy, 0.12);
+  PG.fit[key] = f;
+  // 映像がコマ全体を覆うように（白い隙間を作らない）拡大率と位置を補正
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+  const bx0 = Math.min(...xs), bx1 = Math.max(...xs), by0 = Math.min(...ys), by1 = Math.max(...ys);
+  // 隙間をなくすための拡大が1.25倍以内なら覆う。それ以上なら顔と吹き出しを優先し、隙間は場面の背景で埋める
+  const kc = Math.max((bx1 - bx0)/src.w, (by1 - by0)/src.h);
+  const k2 = kc <= f.k*1.25 ? Math.max(f.k, kc) : f.k;
+  let dx = pcx - k2*f.ux, dy = pcy - k2*f.uy;
+  if (src.w*k2 >= bx1 - bx0) dx = clamp(dx, bx1 - src.w*k2, bx0);
+  if (src.h*k2 >= by1 - by0) dy = clamp(dy, by1 - src.h*k2, by0);
+  return { k:k2, dx, dy };
+}
+function fillSceneBg(poly, scene){
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
+  if (scene === "tension"){ pctx.fillStyle = "#000"; pctx.fillRect(x0, y0, w, h); return; }
+  const L = { calm:LAYERS.calm, joy:LAYERS.joy, gloom:LAYERS.gloom }[scene];
+  if (!L){ pctx.fillStyle = "#fff"; pctx.fillRect(x0, y0, w, h); return; }
+  const k = Math.max(w/L.width, h/L.height);
+  pctx.drawImage(L, x0 + (w - L.width*k)/2, y0 + (h - L.height*k)/2, L.width*k, L.height*k);
+}
+function drawPanel(poly, src, meta, key){
+  pctx.save();
+  pctx.beginPath(); poly.forEach((p, i) => i ? pctx.lineTo(p[0], p[1]) : pctx.moveTo(p[0], p[1])); pctx.closePath();
+  pctx.fillStyle = "#fff"; pctx.fill();
+  pctx.clip();
+  fillSceneBg(poly, meta && meta.scene);
+  if (src){
+    const f = fitInto(key, src, meta, poly);
+    pctx.drawImage(src.el, f.dx, f.dy, src.w*f.k, src.h*f.k);
+  } else {
+    pctx.fillStyle = "#8a8c96"; pctx.font = `700 ${Math.round(PH*0.035)}px "Zen Kaku Gothic New", sans-serif`;
+    pctx.textAlign = "center"; pctx.textBaseline = "middle";
+    const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+    pctx.fillText("相手の映像を待っています", (Math.min(...xs) + Math.max(...xs))/2, (Math.min(...ys) + Math.max(...ys))/2);
+  }
+  pctx.restore();
+  pctx.beginPath(); poly.forEach((p, i) => i ? pctx.lineTo(p[0], p[1]) : pctx.moveTo(p[0], p[1])); pctx.closePath();
+  pctx.lineJoin = "miter"; pctx.strokeStyle = "#111"; pctx.lineWidth = 3.2; pctx.stroke();
+}
+function drawPage(){
+  const rs = remoteSource();
+  const fresh = S.remote && performance.now() - S.remote.at < 1500;
+  const lvR = fresh ? S.remote.lv : 0, lvL = S.level;
+  // 話している方のコマを広く（漫画の見せゴマ）
+  const diff = clamp((lvR - lvL)*3, -1, 1);
+  PG.share = lerp(PG.share, clamp(0.5 + 0.12*diff, PAGE.minShare, PAGE.maxShare), 0.04);
+  const m = PAGE.margin, g = PAGE.gutter/2, s = PW*PAGE.slant;
+  const gx = PW - m - (PW - 2*m)*PG.share;      // 溝の中心（右のコマ＝相手）
+  const left  = [[m, m], [gx + s - g, m], [gx - s - g, PH - m], [m, PH - m]];
+  const right = [[gx + s + g, m], [PW - m, m], [PW - m, PH - m], [gx - s + g, PH - m]];
+  pctx.setTransform(1,0,0,1,0,0);
+  pctx.fillStyle = "#fbfaf6"; pctx.fillRect(0, 0, PW, PH);
+  const selfMeta = { cx:S.cx/W, cy:S.cy/H, r:S.R/H, scene:S.scene,
+    box: S.bBox ? [S.bBox[0]/W, S.bBox[1]/H, S.bBox[2]/W, S.bBox[3]/H] : null };
+  drawPanel(right, rs, fresh ? S.remote : null, "remote");
+  drawPanel(left, { el:out, w:W, h:H }, selfMeta, "self");
+}
+
 /* ===================== 通話（PeerJS / WebRTC） ===================== */
 function setStatus(msg, ok=false){ const el = $("#status"); el.textContent = msg; el.classList.toggle("ok", ok); }
 function initPeer(tries=0){
@@ -2004,6 +2129,7 @@ function initPeer(tries=0){
   peer = new Peer(id);
   peer.on("open", id => { $("#myid").textContent = id; $("#callBtn").disabled = false; setStatus("待機中", true); });
   peer.on("call", call => { call.answer(sendStream); bindCall(call); });
+  peer.on("connection", conn => bindData(conn));
   peer.on("error", e => {
     if (e.type === "unavailable-id" && tries < 3){ peer.destroy(); initPeer(tries+1); return; }
     if (e.type === "peer-unavailable") setStatus("その番号の相手が見つかりません");
@@ -2018,12 +2144,15 @@ function bindCall(call){
   call.on("stream", s => {
     const v = $("#remote"); v.srcObject = s; v.play().catch(() => {});
     document.body.classList.add("in-call");
+    S.inCall = true; PG.fit = { self:null, remote:null };
     setStatus("通話中：" + call.peer, true);
   });
   call.on("close", endCall); call.on("error", endCall);
 }
 function endCall(){
   document.body.classList.remove("in-call");
+  S.inCall = false; S.remote = null;
+  if (dataConn){ try{ dataConn.close(); }catch{} dataConn = null; }
   $("#remote").srcObject = null; $("#hangBtn").disabled = true; currentCall = null;
   setStatus("通話を終了しました", true);
 }
@@ -2032,6 +2161,7 @@ $("#callBtn").addEventListener("click", () => {
   if (!to) return;
   if (/^\d+$/.test(to)) to = "scd-" + to;
   bindCall(peer.call(to, sendStream));
+  bindData(peer.connect(to, { serialization:"json" }));
 });
 $("#hangBtn").addEventListener("click", () => { if (currentCall) currentCall.close(); endCall(); });
 $("#copyBtn").addEventListener("click", async () => {
