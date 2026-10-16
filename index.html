@@ -180,6 +180,14 @@ dialog#help::backdrop{background:rgba(29,42,102,.45)}
     </section>
 
     <section>
+      <div class="label">窓の形</div>
+      <select id="winMode">
+        <option value="silhouette" selected>人物の形に沿う（体はコマの縁へ）</option>
+        <option value="shape">場面ごとの図形（円・四角・もやもや）</option>
+      </select>
+    </section>
+
+    <section>
       <div class="label">顔の描き方</div>
       <select id="faceStyle">
         <option value="pen" selected>ペン画（輪郭と目鼻口をマジックの線で）</option>
@@ -417,6 +425,16 @@ z = (値 − 平均) ÷ SD</pre>
     </table></div>
     <p>カメラ映像は、顔の中心を基準に <code>出力x = 窓の中心x − 倍率×(カメラx − 顔の中心x)</code>、<code>出力y = 窓の中心y + 倍率×(カメラy − 顔の中心y)</code> で拡大・移動します（x の符号は鏡像のため）。倍率 = 目標の半径 ÷ (顔の大きさ×0.8) で、0.6〜3倍に制限します。構図は約0.5秒かけてなめらかに移ります。構図を固定する場面では、頭を少し動かしても顔は同じ位置にとどまります。</p>
 
+    <h4>人物の形に沿う窓（既定）</h4>
+    <p>漫画では、人物の背後にトーンや効果を貼るとき、人物の輪郭のすぐ外側まで貼り、体はコマの枠で切ります。人物のまわりを四角や円で白く囲うことはしません。これにならい、既定では顔の窓を人物のシルエットにしています。</p>
+    <ul>
+      <li><b>シルエット</b>：領域分割の「背景」の確信度 b から、<code>不透明度 = (1 − b − 0.35) ÷ 0.3</code>（0〜1）で人物のマスクを作ります。確信度0.35〜0.65の間をなめらかにつなぐので、縁がガタつきません。</li>
+      <li><b>頭のまわりの余白</b>：マスクを12方向に「顔の半径×0.09」（5〜26画素）ずらして重ね、輪郭を外へ太らせます。この余白は白く残り、その外側からトーンや効果が始まります。落ち込み場面では、縁を少しぼかします。</li>
+      <li><b>体をコマの縁につなぐ</b>：カメラ映像の下端・左端・右端で人物に当たっている範囲を調べ、その幅のまま、画面の下端・左右端までマスクを延ばします。拡大や移動で体の下が画面の途中で終わる場合も、体はコマの下枠まで続きます。</li>
+      <li><b>写真・線画の場合</b>：映像は余白なしのシルエットで切り抜き、余白の部分を白にします。ペン画の場合は、白地に描いた線を余白付きのシルエットで切り抜きます。</li>
+      <li>この窓のときは、窓のまわりのコマ枠は描きません。画面（または通話中のページ）の枠がコマ枠になります。設定の「窓の形」で、場面ごとの図形の窓に戻せます。領域分割を使えない環境では、自動的に図形の窓になります。</li>
+      <li><b>通話中のコマ</b>：映像の下端がコマの下枠より上で終わらないように配置し、体が浮いて見えないようにしています。</li>
+    </ul>
     <h4>コマと背景</h4>
     <div class="tbl"><table>
       <tr><th>場面</th><th>顔の窓（コマ）</th><th>背景・効果</th><th>漫符</th><th>根拠</th></tr>
@@ -431,7 +449,7 @@ z = (値 − 平均) ÷ SD</pre>
     <p>相手とつながると、自分と相手の映像を別々の窓として重ねるのではなく、1ページを斜めの溝で2つのコマに割って並べます。右のコマが相手、左のコマが自分です（日本の漫画は右から読むため、相手を先に読む位置にしています）。</p>
     <ul>
       <li><b>顔の位置の受け渡し</b>：それぞれの端末は、自分の顔の窓の中心・半径と吹き出しの範囲を、映像の幅と高さに対する割合にして、約15回/秒で相手に送ります（PeerJS のデータ通信）。受け取った側は、この情報で相手の映像を切り抜いて配置します。</li>
-      <li><b>コマに収める計算</b>：拡大率は <code>k = 0.40 × コマの高さ ÷ 顔の半径</code> を基本にします。顔の円（半径の1.15倍、下は1.3倍）と吹き出しの範囲を合わせた長方形が、コマの内側（斜めの辺を除いた長方形）の幅・高さの94%に収まらない場合は、収まるまで縮めます。その長方形の中心をコマの中心に合わせ、拡大率と中心は0.12ずつなめらかに追従させます。コマの形と映像の縦横比が違うと隙間ができるので、隙間をなくすための拡大が1.25倍以内なら映像でコマ全体を覆います。それ以上必要なときは顔と吹き出しが切れないことを優先し、隙間はその人の場面の背景（トーン・ベタ・白）で埋めます。場面の種類も位置情報と一緒に送っています。</li>
+      <li><b>コマに収める計算</b>：拡大率は <code>k = 0.40 × コマの高さ ÷ 顔の半径</code> を基本にします。顔の円（半径の1.15倍、下は1.3倍）と吹き出しの範囲を合わせた長方形が、コマの内側（斜めの辺を除いた長方形）の幅・高さの94%に収まらない場合は、収まるまで縮めます。その長方形の中心をコマの中心に合わせ、拡大率と中心は0.12ずつなめらかに追従させます。コマの形と映像の縦横比が違うと隙間ができるので、隙間をなくすための拡大が1.25倍以内なら映像でコマ全体を覆います。それ以上必要なときは顔と吹き出しが切れないことを優先し、隙間はその人の場面の背景で埋めます。トーンの場面では、同じトーンを映像と同じ倍率で、映像の縁で折り返して貼るので、網点の大きさと濃さが途切れずにつながります（ベタの場面は黒、それ以外は白）。場面の種類も位置情報と一緒に送っています。</li>
       <li><b>コマの形</b>：ページの余白18px、溝14px、溝の上端と下端のずれはページ幅の4.5%です。コマの枠は黒い線で描き、通話中は各端末の映像に入っていた内側のコマ枠を省いて、枠が二重にならないようにしています。</li>
       <li><b>見せゴマ</b>：話している方のコマを広くします。<code>差 = (相手の声量 − 自分の声量) × 3</code>（−1〜1）から、相手のコマの幅の割合を <code>0.5 + 0.12 × 差</code>（0.38〜0.62）に近づけます。</li>
       <li>相手の端末から位置情報が届かない場合（古い版など）は、相手の映像の中央に顔があるものとして配置します。</li>
@@ -614,7 +632,7 @@ const S = {
   level:0, floor:-60, dbHist:[], frames:[], f0:0, speaking:false, lastVoice:-1e9, sens:0.5,
   hist:[], lastZ:null, lastZt:-1e9, sceneTxt:{ surprise:0, joy:0, tension:0, gloom:0 }, sceneTxtT:-1e9,
   bmode:"auto", bScore:{},
-  inCall:false, remote:null, bBox:null,
+  inCall:false, remote:null, bBox:null, winMode:"silhouette", segBg:null, silEdges:null,
   faceStyle:"pen", penW:1, penHair:"line", penBody:true, bsRaw:{}, lm:null, seg:null, segOK:false, pen:null,
   deform:0.7, lineP:18, blackEps:0.36, toneTh:0.54, cleanT:0.0192, cleanDark:0.1,
 };
@@ -667,7 +685,7 @@ function setupSize(cw, ch){
   camW = cw; H = ch;
   W = Math.max(camW, Math.round(H*16/9));
   offX = Math.round((W - camW)/2);
-  for (const c of [out, mask, face, fx]){ c.width = W; c.height = H; }
+  for (const c of [out, mask, face, fx, maskT]){ c.width = W; c.height = H; }
   S.fcx = camW/2; S.fcy = H/2; S.size = H*0.4;
   S.vx = W/2; S.vy = H/2;
   buildLayers();
@@ -963,7 +981,7 @@ function loop(now){
   if (cam.currentTime !== lastVideoTime){
     lastVideoTime = cam.currentTime;
     trackFace(landmarker.detectForVideo(cam, now), now);
-    if (S.faceStyle === "pen" && segmenter && S.frameNo % 2 === 0){
+    if ((S.faceStyle === "pen" || S.winMode === "silhouette") && segmenter && S.frameNo % 2 === 0){
       try{ segmenter.segmentForVideo(cam, now, onSegment); }catch(e){}
     }
   }
@@ -1424,12 +1442,16 @@ function onSegment(res){
   if (!S.seg || S.segW !== w || S.segH !== h){
     S.seg = {}; S.segW = w; S.segH = h;
     for (const k in SEG_CLS) S.seg[k] = new Float32Array(w*h);
+    S.segBg = new Float32Array(w*h).fill(1);
   }
+  const bgA = ms[0].getAsFloat32Array();
+  for (let i=0;i<bgA.length;i++) S.segBg[i] += (bgA[i] - S.segBg[i])*PEN.ema;
   for (const k in SEG_CLS){
     const a = ms[SEG_CLS[k]].getAsFloat32Array(), dst = S.seg[k];
     for (let i=0;i<a.length;i++) dst[i] += (a[i] - dst[i])*PEN.ema;
   }
-  buildPenPaths();
+  updateSilhouette();
+  if (S.faceStyle === "pen") buildPenPaths();
 }
 
 /* マーチングスクエア：周囲を0で囲んで、すべての輪郭が閉じたループになるようにする */
@@ -1648,15 +1670,75 @@ function drawPen(ctx){
   ctx.restore();
 }
 
+/* ===================== 人物の形に沿った窓（シルエット） ===================== */
+/* 領域分割の「背景でない」確信度から人物の形のマスクを作り、
+   頭のまわりは少し余白を足して、体は映像の縁に接していればコマの縁まで延ばす */
+const sil = document.createElement("canvas"), sctx = sil.getContext("2d");
+const maskT = document.createElement("canvas"), mtctx = maskT.getContext("2d");
+const DIRS = Array.from({ length:12 }, (_, i) => [Math.cos(i/12*Math.PI*2), Math.sin(i/12*Math.PI*2)]);
+function updateSilhouette(){
+  const w = S.segW, h = S.segH, bg = S.segBg;
+  if (sil.width !== w || sil.height !== h || !S.silImg){ sil.width = w; sil.height = h; S.silImg = sctx.createImageData(w, h); }
+  const d = S.silImg.data;
+  for (let i=0;i<w*h;i++){
+    const a = c01((1 - bg[i] - 0.35)/0.3);          // 確信度0.35〜0.65でなめらかに
+    d[i*4] = d[i*4+1] = d[i*4+2] = 255; d[i*4+3] = a*255;
+  }
+  sctx.putImageData(S.silImg, 0, 0);
+  const on = (x, y) => 1 - bg[y*w + x] > 0.5;
+  const span = (n, f) => { let a = -1, b = -1; for (let i=0;i<n;i++) if (f(i)){ if (a < 0) a = i; b = i; } return a < 0 ? null : [a, b]; };
+  S.silEdges = {
+    bottom: span(w, x => on(x, h-1)),
+    left:   span(h, y => on(0, y)),
+    right:  span(h, y => on(w-1, y)),
+  };
+}
+function silhouetteMask(ctx, margin, alpha, feather){
+  const sx = camW/S.segW, sy = H/S.segH;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = true;
+  if (feather > 0.5) ctx.filter = `blur(${feather.toFixed(1)}px)`;
+  const a = -S.vz*sx, d = S.vz*sy, e = S.vx + S.vz*S.fcx, f = S.vy - S.vz*S.fcy;
+  const offs = margin > 0.5 ? [[0,0], ...DIRS.map(([x, y]) => [x*margin, y*margin])] : [[0,0]];
+  for (const [ox, oy] of offs){ ctx.setTransform(a, 0, 0, d, e + ox, f + oy); ctx.drawImage(sil, 0, 0); }
+  ctx.setTransform(1,0,0,1,0,0);
+  // 体が映像の縁に接していれば、その幅のままコマの縁まで延ばす
+  ctx.fillStyle = "#fff";
+  const E = S.silEdges || {};
+  if (E.bottom){
+    const p1 = camToOut(E.bottom[0]*sx, H), p2 = camToOut((E.bottom[1] + 1)*sx, H);
+    const x0 = Math.min(p1[0], p2[0]) - margin, x1 = Math.max(p1[0], p2[0]) + margin, y = p1[1] - 2;
+    if (y < H) ctx.fillRect(x0, y, x1 - x0, H - y + 2);
+  }
+  for (const [key, camX] of [["left", 0], ["right", camW]]){
+    if (!E[key]) continue;
+    const p1 = camToOut(camX, E[key][0]*sy), p2 = camToOut(camX, (E[key][1] + 1)*sy);
+    const x = p1[0], y0 = Math.min(p1[1], p2[1]) - margin, y1 = Math.max(p1[1], p2[1]) + margin;
+    if (x > S.vx) ctx.fillRect(x - 2, y0, W - x + 2, y1 - y0);    // 鏡像なので、カメラの左端は画面の右側
+    else ctx.fillRect(0, y0, x + 2, y1 - y0);
+  }
+  ctx.restore();
+}
+
 /* ===================== 描画（合成） ===================== */
 function draw(t){
-  // 1. 窓のマスク
-  mctx.clearRect(0,0,W,H);
-  mctx.filter = S.P.feather > 0.5 ? `blur(${S.P.feather.toFixed(1)}px)` : "none";
-  mctx.globalAlpha = S.vis; mctx.fillStyle = "#fff";
-  windowPath(mctx, t); mctx.fill();
-  if (S.P.blob > 0.4){ mctx.globalAlpha = S.vis*0.5*S.P.blob; windowPath(mctx, t*1.7 + 3); mctx.fill(); }
-  mctx.filter = "none"; mctx.globalAlpha = 1;
+  // 1. 窓のマスク（人物の形に沿う窓、または場面ごとの図形の窓）
+  const silMode = S.winMode === "silhouette" && S.segBg && S.silEdges;
+  if (silMode){
+    const margin = clamp(S.R*0.09, 5, 26);
+    silhouetteMask(mctx, margin, S.vis, S.P.feather*0.5);
+    silhouetteMask(mtctx, 0, 1, 0);
+  } else {
+    mctx.clearRect(0,0,W,H);
+    mctx.filter = S.P.feather > 0.5 ? `blur(${S.P.feather.toFixed(1)}px)` : "none";
+    mctx.globalAlpha = S.vis; mctx.fillStyle = "#fff";
+    windowPath(mctx, t); mctx.fill();
+    if (S.P.blob > 0.4){ mctx.globalAlpha = S.vis*0.5*S.P.blob; windowPath(mctx, t*1.7 + 3); mctx.fill(); }
+    mctx.filter = "none"; mctx.globalAlpha = 1;
+  }
 
   // 2. 顔：線画（WebGL）または写真を、構図の変換で配置して窓で切り抜く
   let src = cam, filter = "none";
@@ -1675,6 +1757,11 @@ function draw(t){
     fctx.drawImage(src, 0, 0, camW, H);
     fctx.setTransform(1,0,0,1,0,0);
     fctx.filter = "none";
+    if (silMode){
+      // 写真や線画は人物の形ぴったりで切り抜き、余白の部分は白にする
+      fctx.globalCompositeOperation = "destination-in"; fctx.drawImage(maskT, 0, 0);
+      fctx.globalCompositeOperation = "destination-over"; fctx.fillStyle = "#fff"; fctx.fillRect(0,0,W,H);
+    }
   }
   fctx.globalCompositeOperation = "destination-in";
   fctx.drawImage(mask, 0, 0);
@@ -1704,7 +1791,7 @@ function draw(t){
   if (noiseW > 0.02) drawNoise(octx, noiseW*0.25);
 
   // 6. コマ枠
-  if (S.P.frame > 0.05 && S.vis > 0.05 && !S.inCall){   // 通話中はページのコマ枠を使う
+  if (S.P.frame > 0.05 && S.vis > 0.05 && !S.inCall && !silMode){   // 通話中はページのコマ枠を使う
     octx.save();
     octx.globalAlpha = S.vis*c01(S.P.frame);
     octx.lineJoin = "miter";
@@ -1982,6 +2069,7 @@ function syncStyleSliders(){
   document.querySelectorAll("[data-for]").forEach(el => el.hidden = el.dataset.for !== S.faceStyle);
 }
 $("#faceStyle").addEventListener("change", e => { S.faceStyle = e.target.value; syncStyleSliders(); });
+$("#winMode").addEventListener("change", e => S.winMode = e.target.value);
 $("#penW").addEventListener("input", e => S.penW = +e.target.value);
 $("#penHair").addEventListener("change", e => S.penHair = e.target.value);
 $("#penBody").addEventListener("change", e => { S.penBody = e.target.checked; if (S.seg) buildPenPaths(); });
@@ -2073,25 +2161,33 @@ function fitInto(key, src, meta, poly){
   let dx = pcx - k2*f.ux, dy = pcy - k2*f.uy;
   if (src.w*k2 >= bx1 - bx0) dx = clamp(dx, bx1 - src.w*k2, bx0);
   if (src.h*k2 >= by1 - by0) dy = clamp(dy, by1 - src.h*k2, by0);
+  dy = Math.max(dy, by1 - src.h*k2);      // 体がコマの下枠まで届くよう、映像の下端を下枠に合わせる
   return { k:k2, dx, dy };
 }
-function fillSceneBg(poly, scene){
+function fillSceneBg(poly, scene, f, src){
   const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
   const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
-  if (scene === "tension"){ pctx.fillStyle = "#000"; pctx.fillRect(x0, y0, w, h); return; }
+  pctx.fillStyle = scene === "tension" ? "#000" : "#fff";
+  pctx.fillRect(x0, y0, w, h);
   const L = { calm:LAYERS.calm, joy:LAYERS.joy, gloom:LAYERS.gloom }[scene];
-  if (!L){ pctx.fillStyle = "#fff"; pctx.fillRect(x0, y0, w, h); return; }
-  const k = Math.max(w/L.width, h/L.height);
-  pctx.drawImage(L, x0 + (w - L.width*k)/2, y0 + (h - L.height*k)/2, L.width*k, L.height*k);
+  if (!L || !f) return;
+  // 映像の外側の隙間には、同じ場面のトーンを同じ倍率で、映像の縁で折り返して貼る（網点の大きさと濃さがつながる）
+  const sx = f.k*src.w/L.width, sy = f.k*src.h/L.height, rw = src.w*f.k, rh = src.h*f.k;
+  const tile = (tx, ty, fx, fy) => { pctx.save(); pctx.translate(tx, ty); pctx.scale(sx*fx, sy*fy); pctx.drawImage(L, 0, 0); pctx.restore(); };
+  if (f.dy > y0) tile(f.dx, f.dy, 1, -1);                 // 上
+  if (f.dx > x0) tile(f.dx, f.dy, -1, 1);                 // 左
+  if (f.dx + rw < x0 + w) tile(f.dx + 2*rw, f.dy, -1, 1); // 右
+  if (f.dy > y0 && f.dx > x0) tile(f.dx, f.dy, -1, -1);
+  if (f.dy > y0 && f.dx + rw < x0 + w) tile(f.dx + 2*rw, f.dy, -1, -1);
 }
 function drawPanel(poly, src, meta, key){
   pctx.save();
   pctx.beginPath(); poly.forEach((p, i) => i ? pctx.lineTo(p[0], p[1]) : pctx.moveTo(p[0], p[1])); pctx.closePath();
   pctx.fillStyle = "#fff"; pctx.fill();
   pctx.clip();
-  fillSceneBg(poly, meta && meta.scene);
   if (src){
     const f = fitInto(key, src, meta, poly);
+    fillSceneBg(poly, meta && meta.scene, f, src);
     pctx.drawImage(src.el, f.dx, f.dy, src.w*f.k, src.h*f.k);
   } else {
     pctx.fillStyle = "#8a8c96"; pctx.font = `700 ${Math.round(PH*0.035)}px "Zen Kaku Gothic New", sans-serif`;
