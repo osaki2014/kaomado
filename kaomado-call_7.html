@@ -1,0 +1,2044 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>顔まど通話</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=Zen+Antique&family=Reggae+One&family=Klee+One:wght@400;600&family=Shippori+Mincho:wght@500;700&display=swap">
+<style>
+/* 背表紙の意匠：上に赤と紺の帯、白地に赤い極太タイトル（白フチ＋暗赤フチ）、青罫、下にオレンジの帯。
+   通話ステージは紙色の台の上に置き、設定とヘルプも同じ背表紙の作りにそろえる */
+:root{
+  --paper:#f4f3ef;      /* 背表紙の白 */
+  --paper-2:#e7e4dc;    /* ステージの台紙 */
+  --red:#d3222c;        /* タイトルの赤 */
+  --red-deep:#7c0e16;   /* タイトルの外フチ */
+  --navy:#1d2a66;       /* 帯・作者名の紺 */
+  --blue:#2a5fb5;       /* 叢書名・罫の青 */
+  --orange:#ef9f1f;     /* 下の帯 */
+  --ink:#1b1c22;
+  --muted:#6a6c78;
+  --line:#c9c5ba;
+  --accent:#1d2a66; --warn:#ef9f1f; --live:#2a5fb5;
+  --title:"Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  --round:"M PLUS Rounded 1c", "Zen Kaku Gothic New", sans-serif;
+  --sans:"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper-2);color:var(--ink);font:15px/1.6 var(--sans);display:grid;grid-template-rows:auto minmax(0,1fr)}
+
+/* 帯 */
+.bands-top{height:18px;background:linear-gradient(var(--red) 0 7px, #fff 7px 8px, var(--navy) 8px 15px, #fff 15px 16px, var(--blue) 16px 18px)}
+.band-bottom{height:7px;background:linear-gradient(#fff 0 2px, var(--orange) 2px)}
+
+/* ヘッダー（背表紙） */
+.cover{background:var(--paper);box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.cover-body{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:10px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px))}
+.spine{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.imprint{font-family:var(--round);font-weight:800;font-size:12.5px;letter-spacing:.06em;color:var(--blue);line-height:1;padding:3px 10px 4px;border:1.5px solid var(--blue);border-radius:999px;background:#fff}
+.title{position:relative;isolation:isolate;margin:0 0 0 6px;padding:0 6px;font-family:var(--title);font-weight:400;font-size:38px;line-height:1.15;letter-spacing:.02em;color:var(--red);transform:skewX(-7deg);
+  filter:drop-shadow(1.6px 0 0 var(--red-deep)) drop-shadow(-1.6px 0 0 var(--red-deep)) drop-shadow(0 1.6px 0 var(--red-deep)) drop-shadow(0 -1.6px 0 var(--red-deep)) drop-shadow(2.5px 2.5px 0 rgba(124,14,22,.55))}
+.title::before{content:attr(data-text);position:absolute;inset:0;padding:0 6px;z-index:-1;color:#fff;-webkit-text-stroke:8px #fff}
+.byline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;flex:1 1 520px;min-width:0;border-top:1.5px solid var(--blue);padding-top:8px;align-self:flex-end}
+.author{font-weight:900;color:var(--navy);font-size:15px;letter-spacing:.08em}
+.grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.myid{font-family:var(--title);font-size:20px;color:var(--blue);letter-spacing:.04em;user-select:all;min-width:5.5em}
+.status{font-size:12.5px;color:var(--muted)}
+.status.ok{color:var(--blue);font-weight:700}
+.spacer{flex:1 1 auto}
+.iconbtn{width:38px;height:38px;padding:0;border-radius:50%;background:#fff;border:2px solid var(--navy);color:var(--navy);font-family:var(--title);font-size:17px;display:grid;place-items:center}
+.iconbtn:hover,.iconbtn[aria-expanded=true]{background:var(--navy);color:#fff}
+.iconbtn svg{width:18px;height:18px}
+
+/* ステージ */
+.stage{position:relative;display:grid;place-items:center;padding:16px;min-height:0;background:var(--paper-2)}
+.stage video,.stage canvas{display:block;max-width:100%;max-height:100%;background:#fff;border:3px solid var(--ink);box-shadow:6px 6px 0 rgba(29,42,102,.18)}
+#remote{display:none;width:100%}
+#out{width:100%}
+body.in-call #remote{display:block}
+body.in-call #out{position:absolute;right:20px;bottom:20px;width:24%;min-width:150px;border-width:2px}
+.copyright{position:fixed;right:max(12px, env(safe-area-inset-right, 0px));bottom:max(8px, env(safe-area-inset-bottom, 0px));z-index:5;font-family:var(--round);font-weight:700;font-size:11.5px;letter-spacing:.03em;color:var(--navy);background:rgba(244,243,239,.88);padding:2px 10px;border-radius:999px;pointer-events:none}
+.hint{position:absolute;inset:auto 0 28px;text-align:center;color:var(--muted);font-size:13px}
+body.started .hint{display:none}
+
+/* ボタン類 */
+button,input,select{font:inherit;color:inherit}
+button{background:var(--red);color:#fff;border:2px solid var(--red-deep);border-radius:4px;padding:6px 14px;font-weight:900;letter-spacing:.04em;cursor:pointer;box-shadow:2px 2px 0 var(--red-deep)}
+button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--red-deep)}
+button.ghost{background:#fff;color:var(--navy);border-color:var(--navy);font-weight:700;box-shadow:2px 2px 0 var(--navy)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+input[type=text]{background:#fff;border:2px solid var(--navy);border-radius:4px;padding:5px 10px;width:10em;font-family:var(--mono);color:var(--ink)}
+select{background:#fff;border:2px solid var(--navy);border-radius:4px;padding:6px 8px;width:100%;color:var(--ink)}
+
+/* 設定ポップアップ（非モーダル） */
+dialog#settings{position:fixed;inset:118px max(16px, env(safe-area-inset-right, 0px)) auto auto;margin:0;width:min(360px, calc(100vw - 32px));max-height:calc(100vh - 136px);overflow-y:auto;padding:0;border:2px solid var(--navy);border-radius:4px;background:var(--paper);color:var(--ink);box-shadow:8px 8px 0 rgba(29,42,102,.25)}
+.set-head{position:sticky;top:0;z-index:1;background:var(--paper)}
+.set-head .row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px 8px;border-bottom:1.5px solid var(--blue)}
+.set-head h2{margin:0;font-family:var(--title);font-weight:400;font-size:19px;color:var(--red);transform:skewX(-6deg);filter:drop-shadow(1px 0 0 var(--red-deep)) drop-shadow(-1px 0 0 var(--red-deep)) drop-shadow(0 1px 0 var(--red-deep)) drop-shadow(0 -1px 0 var(--red-deep))}
+.set-head button{padding:3px 12px}
+.set-body{padding:14px 16px 18px;display:flex;flex-direction:column;gap:18px}
+.label{display:inline-block;align-self:flex-start;font-family:var(--round);font-weight:800;font-size:12px;letter-spacing:.06em;color:var(--blue);border:1.5px solid var(--blue);border-radius:999px;padding:1px 10px 2px;background:#fff;margin-bottom:4px}
+section{display:flex;flex-direction:column;gap:7px}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.chips button{padding:5px 0;font-size:13px;background:#fff;color:var(--navy);border:2px solid var(--navy);font-weight:700;box-shadow:none}
+.chips button[aria-pressed=true]{background:var(--red);border-color:var(--red-deep);color:#fff;box-shadow:2px 2px 0 var(--red-deep)}
+.meter{display:grid;grid-template-columns:5.8em minmax(0,1fr) 3.2em;align-items:center;gap:8px;font-size:13px}
+.meter.cur span{color:var(--red);font-weight:900}
+.bar{height:7px;background:#e3e0d7;border:1px solid var(--line);border-radius:0;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--navy)}
+.meter output{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.big{font-family:var(--title);font-size:18px;color:var(--navy)}
+.said{font-size:14px;min-height:1.6em;background:#fff;border:2px solid var(--ink);border-radius:18px;padding:6px 14px;overflow-wrap:anywhere;font-family:"Zen Antique", var(--sans)}
+.slider{display:grid;grid-template-columns:6.5em minmax(0,1fr);align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--navy)}
+input[type=range]{width:100%;accent-color:var(--red)}
+#fontProbe{position:absolute;left:-9999px;top:0;white-space:nowrap;font-size:16px}
+
+/* ヘルプ（同じ背表紙の作り） */
+dialog#help{width:min(880px, calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:2px solid var(--navy);border-radius:4px;background:var(--paper);color:var(--ink);box-shadow:10px 10px 0 rgba(29,42,102,.3)}
+dialog#help::backdrop{background:rgba(29,42,102,.45)}
+.help-head{position:sticky;top:0;z-index:1;background:var(--paper)}
+.help-head .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 24px 10px;border-bottom:1.5px solid var(--blue)}
+.help-head h2{position:relative;isolation:isolate;margin:0;font-family:var(--title);font-weight:400;font-size:26px;color:var(--red);transform:skewX(-7deg);
+  filter:drop-shadow(1.4px 0 0 var(--red-deep)) drop-shadow(-1.4px 0 0 var(--red-deep)) drop-shadow(0 1.4px 0 var(--red-deep)) drop-shadow(0 -1.4px 0 var(--red-deep))}
+.help-head h2::before{content:attr(data-text);position:absolute;inset:0;z-index:-1;color:#fff;-webkit-text-stroke:6px #fff}
+.help-body{padding:8px 24px 32px;font-size:14px;line-height:1.85}
+.help-body h3{font-family:var(--title);font-weight:400;font-size:19px;color:var(--navy);margin:28px 0 8px;padding:2px 0 4px 12px;border-left:6px solid var(--red);border-bottom:1.5px solid var(--blue)}
+.help-body h4{font-size:15px;margin:18px 0 4px;color:var(--navy)}
+.help-body p,.help-body li{max-width:74ch}
+.help-body code{font-family:var(--mono);font-size:12.5px;background:#e6e3da;padding:1px 5px;border-radius:3px}
+.help-body pre{font-family:var(--mono);font-size:12.5px;background:#e6e3da;padding:10px 12px;border-left:4px solid var(--navy);overflow-x:auto;line-height:1.6}
+.tbl{overflow-x:auto}
+.help-body table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}
+.help-body th,.help-body td{border:1px solid #b9b5a8;padding:6px 8px;text-align:left;vertical-align:top}
+.help-body th{background:var(--navy);color:#fff;font-weight:700}
+.help-body a{color:var(--blue)}
+.help-body .note{font-size:13px;color:#4a4b52}
+.help-toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:12px 0 0;padding:0;list-style:none}
+@media (max-width:760px){ .title{font-size:30px} input[type=text]{width:8em} dialog#settings{inset:auto 16px 16px auto;max-height:70vh} }
+</style>
+</head>
+<body>
+<header class="cover">
+  <div class="bands-top"></div>
+  <div class="cover-body">
+    <div class="spine">
+      <div class="imprint">SCD-KU MEDIA</div>
+      <h1 class="title" data-text="顔まど通話">顔まど通話</h1>
+    </div>
+    <div class="byline">
+      <button id="startBtn">カメラとマイクを開始</button>
+      <div class="grp">
+        <span class="status">あなたの番号</span>
+        <span class="myid" id="myid">----</span>
+        <button class="ghost" id="copyBtn">コピー</button>
+      </div>
+      <div class="grp">
+        <input type="text" id="to" placeholder="相手の番号" autocomplete="off" aria-label="相手の番号">
+        <button id="callBtn" disabled>発信</button>
+        <button class="ghost" id="hangBtn" disabled>切る</button>
+      </div>
+      <div class="status" id="status">未接続</div>
+      <div class="spacer"></div>
+      <button class="iconbtn" id="setBtn" aria-label="設定を開く" aria-expanded="false" title="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+      <button class="iconbtn" id="helpBtn" aria-label="ヘルプを開く" title="ヘルプ">?</button>
+    </div>
+  </div>
+  <div class="band-bottom"></div>
+</header>
+
+<p class="copyright">© 2026 Science Communication Design Laboratory, Kagawa University</p>
+<main class="stage">
+  <video id="remote" playsinline autoplay></video>
+  <canvas id="out" width="854" height="480"></canvas>
+  <p class="hint">「カメラとマイクを開始」を押してください</p>
+</main>
+
+<dialog id="settings" aria-labelledby="setTitle">
+  <div class="set-head"><div class="bands-top"></div><div class="row"><h2 id="setTitle">設定と解析</h2><button class="ghost" id="setClose">閉じる</button></div></div>
+  <div class="set-body">
+    <section>
+      <div class="label">場面（構図・コマ・背景の演出）</div>
+      <div class="chips" id="smodes">
+        <button data-s="auto" aria-pressed="true">自動</button>
+        <button data-s="calm" aria-pressed="false">日常</button>
+        <button data-s="surprise" aria-pressed="false">驚き</button>
+        <button data-s="joy" aria-pressed="false">喜び</button>
+        <button data-s="tension" aria-pressed="false">緊張・怒り</button>
+        <button data-s="gloom" aria-pressed="false">落ち込み</button>
+      </div>
+      <div class="big" id="sName">—</div>
+      <div id="sBars"></div>
+    </section>
+
+    <section>
+      <div class="label">顔の描き方</div>
+      <select id="faceStyle">
+        <option value="pen" selected>ペン画（輪郭と目鼻口をマジックの線で）</option>
+        <option value="clean">すっきり線画（余白の多いシンプルな線）</option>
+        <option value="lineart">漫画の線画（線＋ベタ＋トーン）</option>
+        <option value="mono">モノクロ写真</option>
+        <option value="color">カラー写真</option>
+      </select>
+      <div class="slider"><span>デフォルメ</span><input type="range" id="deform" min="0" max="1" step="0.01" value="0.7"></div>
+      <div class="slider" data-for="pen"><span>線の太さ</span><input type="range" id="penW" min="0.5" max="2.2" step="0.05" value="1"></div>
+      <div class="slider" data-for="pen"><span>髪</span><select id="penHair"><option value="line" selected>輪郭の線だけ</option><option value="fill">黒く塗る</option></select></div>
+      <label class="slider" data-for="pen"><span>首と服の線</span><span><input type="checkbox" id="penBody" checked> 描く</span></label>
+      <div class="slider" data-for="clean" hidden><span>線の量</span><input type="range" id="cleanAmt" min="0" max="1" step="0.01" value="0.65"></div>
+      <div class="slider" data-for="clean" hidden><span>黒く塗る量</span><input type="range" id="cleanDark" min="0.02" max="0.35" step="0.01" value="0.1"></div>
+      <div class="slider" data-for="lineart" hidden><span>線の強さ</span><input type="range" id="lineP" min="6" max="40" step="1" value="18"></div>
+      <div class="slider" data-for="lineart" hidden><span>ベタの量</span><input type="range" id="blackEps" min="0.22" max="0.52" step="0.01" value="0.36"></div>
+      <div class="slider" data-for="lineart" hidden><span>トーンの量</span><input type="range" id="toneTh" min="0.4" max="0.75" step="0.01" value="0.54"></div>
+    </section>
+
+    <section>
+      <div class="label">吹き出し</div>
+      <div class="chips" id="bmodes">
+        <button data-b="auto" aria-pressed="true">自動</button>
+        <button data-b="normal" aria-pressed="false">通常</button>
+        <button data-b="shout" aria-pressed="false">叫び</button>
+        <button data-b="whisper" aria-pressed="false">小声</button>
+        <button data-b="tremble" aria-pressed="false">震え</button>
+        <button data-b="mutter" aria-pressed="false">つぶやき</button>
+      </div>
+      <div class="big" id="bName">—</div>
+      <div class="said" id="said"></div>
+      <div id="bBars"></div>
+      <div class="status" id="srStatus">音声認識：開始前</div>
+      <div class="status" id="calib">話者の基準：初期値（話すほど本人に合わせて調整）</div>
+    </section>
+
+    <section>
+      <div class="label">声の解析（直近2.5秒）</div>
+      <div class="meter"><span>声の大きさ</span><div class="bar"><i id="lvBar"></i></div><output id="lvOut">0</output></div>
+      <div class="meter"><span>抑揚(半音)</span><div class="bar"><i id="inBar" style="background:var(--warn)"></i></div><output id="inOut">0</output></div>
+      <div class="meter"><span>揺れ(半音)</span><div class="bar"><i id="jtBar" style="background:#c58bff"></i></div><output id="jtOut">0</output></div>
+      <div class="meter"><span>声の高さ</span><div></div><output id="f0Out">—</output></div>
+      <div class="slider"><span>マイク感度</span><input type="range" id="sens" min="0" max="1" step="0.01" value="0.5"></div>
+    </section>
+    <div class="status">ショートカット：1〜6 場面／Q〜Y 吹き出し／S 設定／H ヘルプ</div>
+  </div>
+</dialog>
+
+<dialog id="help" aria-labelledby="helpTitle">
+  <div class="help-head">
+    <div class="bands-top"></div>
+    <div class="row">
+      <h2 id="helpTitle" data-text="顔まど通話のしくみ">顔まど通話のしくみ</h2>
+      <button id="helpClose">閉じる</button>
+    </div>
+  </div>
+  <div class="help-body">
+    <ul class="help-toc">
+      <li><a href="#h1">1 全体の流れ</a></li><li><a href="#h2">2 顔の追跡と表情</a></li><li><a href="#h2b">3 顔の描き方（ペン画・線画・デフォルメ）</a></li>
+      <li><a href="#h3">4 声の解析</a></li><li><a href="#h4">5 話者への適応</a></li><li><a href="#h5">6 吹き出し5種</a></li>
+      <li><a href="#h6">7 縦書きの組版</a></li><li><a href="#h7">8 場面推定</a></li><li><a href="#h8">9 場面ごとの構図と演出</a></li>
+      <li><a href="#h9">10 演出の描画方法</a></li><li><a href="#h10">11 操作・通話・注意点</a></li><li><a href="#h11">12 参考にした事例・資料</a></li><li><a href="#h12">13 使用しているソフトウェア・書体のライセンス</a></li>
+    </ul>
+
+    <h3 id="h1">1 全体の流れ</h3>
+    <p>毎フレーム（約60回/秒）、次の順に処理し、出来上がったキャンバス映像とマイク音声を相手に送ります。相手には演出込みの映像がそのまま届きます。</p>
+    <pre>カメラ → 顔のランドマークと表情（MediaPipe Face Landmarker）
+       → 顔を漫画の線画に変換・デフォルメ（WebGL シェーダー）
+マイク → 声の大きさ・高さ・抑揚・揺れ（自前の信号処理）
+       → 音声認識で文字に（Chrome の Web Speech API）
+表情＋頭の動き＋明るさ＋声＋言葉 → 場面を推定（5種）
+       → 構図（顔の大きさと位置）・コマの形・背景演出・漫符
+声の特徴＋言葉 → 吹き出しの種類（5種）→ 形・書体・縦書きで描画
+すべてを1枚のキャンバスに合成 → captureStream で送信（WebRTC / PeerJS）</pre>
+
+    <h3 id="h2">2 顔の追跡と表情</h3>
+    <p>MediaPipe の Face Landmarker を VIDEO モードで使い、顔の478点と、表情を表す52個のブレンドシェイプ（0〜1）を受け取ります。</p>
+    <ul>
+      <li><b>顔の位置と大きさ</b>：478点の外接矩形の中心と一辺（幅・高さの大きい方）。毎フレーム <code>値 ← 値 + (新しい値 − 値) × 0.35</code>（大きさは0.2）でなめらかにします。</li>
+      <li><b>使うランドマーク</b>：目尻・目頭（33・133、362・263）、虹彩の中心と縁（468・469、473・474）、鼻先（1）、唇の内側（13・14）、あご先（152）、頬（50・280）、額（10・67・297）、こめかみ（127・356）。いずれも0.5の係数でなめらかにしてから使います。</li>
+      <li><b>表情の基準</b>：各ブレンドシェイプの「下側の包絡線」を無表情の基準とします。値が基準より下なら速く（0.02）、上ならゆっくり（0.0005）追従させ、<code>差分 = 現在値 − 基準</code> を表情の強さにします。</li>
+      <li><b>頭の動き</b>：顔の中心の移動量 ÷ 顔の大きさ を1秒あたりに換算し、指数移動平均（0.1）でならします。</li>
+      <li><b>明るさ</b>：顔の領域を16×16画素に縮小した平均輝度（15フレームごと）。線画化の明るさ補正と、場面推定の「暗さ」に使います。</li>
+    </ul>
+
+    <h3 id="h2b">3 顔の描き方（ペン画・線画・デフォルメ）</h3>
+    <h4>漫画の顔の特徴（調査）</h4>
+    <p>商業漫画の登場人物の顔を計測した研究では、次のことが報告されています。</p>
+    <ul>
+      <li>女性向け漫画では瞳が顔幅の20%に達する人物がいる。実際の人は7.5〜10%付近に集中している。</li>
+      <li>目の縦幅が大きく、円に近く描かれる。</li>
+      <li>鼻が全く描かれない作品も多い。</li>
+      <li>実際の人より丸顔に描かれる。</li>
+    </ul>
+    <p>また、商業漫画の基本は、主線とベタ（黒）とスクリーントーン（網点）の3要素で明暗を表すことです。本アプリはこの2点をもとに、写真の顔を「線＋ベタ＋トーン」の白黒画にし、目を大きく丸く、鼻を小さく（ほぼ省略）、あごを細くデフォルメします。</p>
+
+    <h4>処理（WebGL の4パス）</h4>
+    <ol>
+      <li><b>デフォルメと明るさ補正</b>：出力の画素 p ごとに、カメラ画像のどこを読むかを変えて顔を変形します（逆写像）。
+        <ul>
+          <li>目：目の中心 e、半径 r（目の幅×0.9、縦は1.15倍の楕円）の中で、<code>t = |p − e| / r</code>、<code>w = (1 − t²)²</code>、<code>読む位置 = e + (p − e) × mix(1, 1/s, w)</code>。s は拡大率で、横と縦を別にし、縦を大きくして目を丸くします（日常：横1.35・縦1.5倍、驚き：1.55・1.75倍など。デフォルメ0.7のとき）。</li>
+          <li>鼻：鼻先 n、半径 = 顔の大きさ×0.16の中で、<code>読む位置 = n + (p − n) × (1 + k·w)</code>（k = 0.5×デフォルメ）。中心から遠くを読むので、鼻が小さくなります。</li>
+          <li>あご：口より下で、<code>読む x = 顔の中心x + (x − 顔の中心x) × (1 + 0.25×デフォルメ × smoothstep(下がり具合) × 横方向の減衰)</code>。下に行くほど横に縮み、あごが細く尖ります。</li>
+          <li>明るさ補正：<code>L = 0.62 + (輝度 − 顔の平均輝度) × 1.4</code>。部屋の明るさが違っても、肌がほぼ同じ明るさになります。</li>
+        </ul></li>
+      <li><b>横方向のぼかし</b>と<b>縦方向のぼかし</b>：σ = 1.0 と kσ = 1.6 の2種類のガウスぼかしを、分離可能なフィルタ（半径8画素）で同時に計算します。精度を保つため、中間結果は半精度の浮動小数点で保持します（対応環境のみ）。</li>
+      <li><b>XDoG による線・ベタ・トーン</b>：Winnemöller らの XDoG（拡張ガウス差分）を使います。
+        <pre>S = (1 + p)·G_σ − p·G_kσ        （k = 1.6、p = 線の強さ 既定18）
+線 = 1                       （S ≥ ε のとき）
+   = 1 + tanh(φ·(S − ε))     （S &lt; ε のとき、ε = ベタの量 既定0.36、φ = 30）</pre>
+        p を大きくするほど輪郭が強調され、ε を上げるほど暗い部分（髪・瞳）がベタになります。さらに、ε ≤ S &lt; トーンの量（既定0.54）の中間調を、45度の網点で塗ります。網点の面積率は明るさに応じて50%→10%に変え、<code>半径 = セル × √(面積率 / π)</code>（セル3.6画素）で点を打ちます。最後に、鼻先から顔の大きさ×0.2以内の線を薄くして（半径の50%以内は完全に消す）、鼻をほぼ省略します。</li>
+    </ol>
+    <h4>ペン画モード（既定）：輪郭と特徴点の上にマジックの線を描く</h4>
+    <p>画素の明暗から線を抜く方法（下の2モード）は、照明や影の具合で線が途切れたり、不要な影が線になったりします。ペン画モードは考え方を変え、<b>どこに線を引くかを形の情報（領域とランドマーク）から決め、その上に一定の太さの線を描きます</b>。Illustrator でパスを引いてブラシで描くのに近い作り方です。</p>
+    <p><b>線の規則</b>：線は一定の太さで、陰影は描きません。描くのは輪郭と目・眉・鼻・口だけで、目は小さな点、口は短い1本線にします。線の数を減らすほど見る人の想像に委ねられる、という線画の考え方は、下記「参考にした事例・資料」のインタビュー記事を参照しました。特定の作品を再現するものではありません。</p>
+    <h4>輪郭の線（領域分割から）</h4>
+    <ol>
+      <li><b>領域分割</b>：MediaPipe の多クラス自撮り分割モデル（256×256）で、各画素が「背景・髪・体の肌・顔の肌・服・その他」である確信度を求めます（2フレームに1回）。ちらつきを抑えるため、確信度は <code>新 = 旧 + (今回 − 旧)×0.4</code> でならします。</li>
+      <li><b>等高線の抽出（マーチングスクエア）</b>：髪・顔の肌・服・体の肌の確信度が0.5になる境目を、2×2画素ごとに16通りの場合分けで線分にし、隣り合う線分をつないで閉じた輪郭にします。画像の外側を0として囲むので、輪郭は必ず閉じます。</li>
+      <li><b>点の間引き（Ramer–Douglas–Peucker）</b>：直線からのずれが0.7画素以下の点を省き、パスのアンカーポイントのように少ない点で形を表します。閉じた輪郭は、始点から最も遠い点で2つに分けてから間引きます。</li>
+      <li><b>なめらか化（Chaikin の角切り）</b>：各辺を1:3と3:1の位置で切り直す処理を2回繰り返し、角を丸めた曲線にします。描くときも、点の中点を通る2次ベジェ曲線でつなぎます。</li>
+      <li><b>必要な線だけ残す</b>：同じ境目を二重に描かないよう、次のように選びます。
+        <ul>
+          <li>髪：外形と前髪の生え際をすべて描きます。</li>
+          <li>顔の肌：耳を含む輪郭を描きます。髪との境目は髪の線にまかせます（髪の確信度が0.35を超える部分は描かない）。</li>
+          <li>服：肩の外形と襟を描きます。</li>
+          <li>首・手：背景との境目だけを描きます。</li>
+        </ul>
+        画面の縁に沿う部分と、マスク上で周長28画素未満の小さな輪郭は捨てます。</li>
+    </ol>
+    <h4>目・眉・鼻・口の線（ランドマークから）</h4>
+    <ul>
+      <li><b>眉</b>：眉の上端5点（70・63・105・66・107、反対側は336・296・334・293・300）を通る1本の線。</li>
+      <li><b>目</b>：虹彩の中心（468・473）に小さな黒い点（半径＝線の太さ×(1.05 + 0.35×デフォルメ)）。まばたき（eyeBlink）が0.5を超えたら、上まぶたに沿った短い弧にします。</li>
+      <li><b>鼻</b>：鼻先から小鼻へのかぎ型（4→1→2→小鼻98または327）。顔の向き <code>(鼻先x − 顔の左右端の中点x) ÷ 顔の幅</code> が±0.06を超えたら、鼻筋（6→197→195→5→4）からつなげて描きます。</li>
+      <li><b>口</b>：閉じているときは、唇の内側の上下の中点を結ぶ短い1本線（両端を15%内側へ縮める）。口を開けたとき（jawOpen が0.22超）は、唇の内側の輪郭を黒く塗ります。</li>
+      <li>領域分割を使えない環境では、顔の外周36点（FACE_OVAL）を結んで輪郭にします。</li>
+    </ul>
+    <h4>線の描き方</h4>
+    <p>線の太さは、顔の大きさ×拡大率×0.013×「線の太さ」（1.4〜10画素）で、すべての線に同じ太さを使います。先端と角は丸め、ごく弱いにじみ（影のぼかし＝太さ×0.45）を付けて、紙に描いたマジックの質感に近づけています。設定では、線の太さ、髪を輪郭線だけにするか黒く塗るか、首と服の線を描くかを選べます。</p>
+    <h4>すっきり線画・漫画の線画のノイズ除去</h4>
+    <p>カメラの映像には細かいノイズと肌の質感があり、そのまま線を抜くと、顔に細かい斑点や途切れた短い線が出ます。そこで、線を抜く前と後に次の処理を入れています。</p>
+    <ol>
+      <li><b>時間方向のならし</b>：デフォルメ後の明るさを、前のフレームの結果と混ぜます（<code>L = mix(今回, 前回, keep)</code>、すっきり線画で keep = 0.55、漫画の線画で0.45）。フレームごとに変わるノイズが打ち消され、線のちらつきが減ります。</li>
+      <li><b>バイラテラルフィルタ</b>：Tomasi と Manduchi のバイラテラルフィルタを、横・縦の2回に分けて近似します。周りの画素を、距離（σs）と明るさの差（σr）の両方で重み付けして平均するので、輪郭のような大きな段差は残り、肌の細かい凹凸だけが平らになります。<code>重み = exp(−x²/2σs² − (v − c)²/2σr²)</code>（すっきり線画で σs = 4.0、σr = 0.07、漫画の線画で 2.5・0.10）。</li>
+      <li><b>孤立点の除去と縁のなめらか化</b>：線を描いた後、黒い画素のまわり3×3に黒が規定数（すっきり線画で4、漫画の線画で3）未満しかなければ白にして、ぽつんとした点を消します。残った線は3×3の平均と混ぜて（0.45・0.25）、輪郭の段差をならします。</li>
+    </ol>
+    <h4>すっきり線画モード（余白の多いシンプルな線）</h4>
+    <p>XDoG のように暗い面を黒く塗ることも網点を打つこともせず、ガウス差分（DoG）の<b>暗い側</b>だけを線にします。顔の大部分が白い余白として残り、輪郭・目・眉・口などの主な線だけが描かれます。</p>
+    <pre>D = G_σ − G_1.6σ         （σ = 1.5。大きめにして細かい線を拾わない）
+線 = smoothstep(−T, −0.45·T, D)   （T が小さいほど線が増える。T = 0.04 − 0.032×線の量、既定の線の量0.65）
+塗り = smoothstep(暗さ − 0.03, 暗さ + 0.03, G_σ)  （瞳などごく暗い所だけ黒く。既定0.10）
+画素 = min(線, 塗り)</pre>
+    <p>smoothstep で縁をなめらかに変化させているので、線にギザギザが出にくくなっています。設定の「線の量」と「黒く塗る量」で、線の多さと黒い面の多さを調整できます。</p>
+    <p>どちらの線画でも、鼻のまわりは、白へ一気に切り替わる狭い範囲で線を消すようにしました。以前の版で出ていた、鼻のまわりの灰色のにじみは出なくなります。</p>
+    <h4>線画の上に描き足すもの</h4>
+    <ul>
+      <li><b>瞳のハイライト（キャッチライト）</b>：拡大後の瞳の左上に大きな白い楕円、右下に小さな白丸を置きます。大きさは虹彩の半径（468と469の距離）×拡大率で決めます。</li>
+      <li><b>鼻</b>：鼻先に小さな影の線を1本だけ描きます（漫画でよくある省略表現）。</li>
+      <li><b>漫符</b>：喜びでは頬に照れの斜線、緊張・怒りでは額の端に怒りマーク（十字の血管）、驚きではこめかみに汗を描きます。</li>
+    </ul>
+
+    <h3 id="h3">4 声の解析</h3>
+    <ul>
+      <li><b>音量</b>：2048サンプルのRMSから <code>dB = 20·log10(RMS)</code>。</li>
+      <li><b>ノイズフロアの追従</b>：直近6秒のdBの下位10パーセンタイルを部屋の静けさとし、<code>相対音量 = dB − ノイズフロア</code>。</li>
+      <li><b>有声の判定</b>：相対音量が <code>6 + (1 − 感度)×8</code> dB を超えたフレーム。</li>
+      <li><b>声の高さ</b>：1024サンプルの自己相関で75〜400Hzの範囲の最大の山を探します（山がエネルギーの0.5倍未満なら無声）。<code>st = 12·log2(F0/110)</code> で半音に直します。</li>
+      <li><b>抑揚</b>＝発話中の半音値の標準偏差。<b>揺れ</b>＝連続する有声フレーム（50ms以内）の半音差の中央値（3半音以上の跳びは除外）。</li>
+      <li><b>発話区間</b>：認識結果が出始める直前3秒以内で最初に声が立ち上がった時刻の0.8秒前から。</li>
+    </ul>
+
+    <h3 id="h4">5 話者への適応</h3>
+    <p>判定は「その人の普段の話し方からどれだけ外れたか」で行います。発話ごとに平均相対音量・ピーク（上位10%）・抑揚・揺れ・平均の高さを記録し、直近40発話の平均と標準偏差を求めます。話し始めは初期値を4発話ぶんとして混ぜます。</p>
+    <pre>平均 = (初期平均×4 + Σx) ÷ (4 + n)
+分散 = (初期SD²×4 + Σ(x − 平均)²) ÷ (4 + n)
+z = (値 − 平均) ÷ SD</pre>
+    <p>初期値：平均相対音量18±5dB、ピーク26±5dB、抑揚2.2±0.9半音、揺れ0.45±0.2半音、高さ8±4半音（約175Hz）。普段の声でランダムな発話を2000件作って試すと、言葉の手がかりなしで、通常61%、叫び12%、小声14%、震え7%、つぶやき6%に分かれました。</p>
+
+    <h3 id="h5">6 吹き出し5種</h3>
+    <div class="tbl"><table>
+      <tr><th>種類</th><th>得点（しきい値を最も大きく超えたものを選択、どれも超えなければ通常）</th><th>しきい値</th></tr>
+      <tr><td>叫び</td><td>0.6·z(ピーク) + 0.6·z(平均音量) + 0.9·言葉</td><td>1.4</td></tr>
+      <tr><td>小声</td><td>−0.7·z(平均音量) − 0.5·z(ピーク) + 1.0·言葉</td><td>1.2</td></tr>
+      <tr><td>震え</td><td>1.0·z(揺れ) + 1.0·言葉 + 0.4·落ち込み場面の強さ</td><td>1.3</td></tr>
+      <tr><td>つぶやき</td><td>−0.7·z(抑揚) − 0.3·z(平均音量) + 0.9·言葉</td><td>1.0</td></tr>
+    </table></div>
+    <p>「言葉」は手がかり語の数×0.7（上限1）です。叫び：！、おい、待って、やめ、うわ、ちょっと など。小声：ここだけ、内緒、こっそり、実は など。震え：「こ、こわい」型の言いよどみ、怖い、やば、ごめんなさい など。つぶやき：…、まあ、はあ、どうせ、別に、うーん など。</p>
+    <div class="tbl"><table>
+      <tr><th>種類</th><th>形</th><th>書体</th><th>根拠</th></tr>
+      <tr><td>通常</td><td>楕円＋口元へのしっぽ</td><td>Zen Antique（アンチック体）</td><td>楕円は普通の会話。商業誌の基本書体はアンチック体</td></tr>
+      <tr><td>叫び</td><td>爆発型ギザギザ</td><td>Reggae One</td><td>ギザギザは叫び・怒り。叫びには刺々しい「コミックレゲエ」</td></tr>
+      <tr><td>小声</td><td>破線の楕円</td><td>アンチック体を68%に縮小</td><td>点線・破線は小声・内緒話。文字の縮小も併用される</td></tr>
+      <tr><td>震え</td><td>波線の輪郭</td><td>Klee One</td><td>波線は動揺・弱々しさ。弱々しい場面には細めの手書き風</td></tr>
+      <tr><td>つぶやき</td><td>雲形＋泡のしっぽ</td><td>しっぽり明朝</td><td>雲形は穏やかな内面の声。沈んだ台詞には明朝体</td></tr>
+    </table></div>
+    <ul>
+      <li><b>楕円</b>：<code>rx = 文字ブロック幅/2×1.38 + 0.7em</code>、<code>ry = 高さ/2×1.3 + 0.7em</code>。</li>
+      <li><b>しっぽ</b>：口元への角度 θ の楕円上 θ±0.2rad から先端へ。長さ0.9〜2.4em（叫びは3.2em）。</li>
+      <li><b>ギザギザ</b>：18〜23本のトゲ、外側は楕円の1.16〜1.42倍、内側は0.96倍。吹き出しごとに固定した乱数（mulberry32）。</li>
+      <li><b>破線</b>：線0.35em・間隔0.3em。<b>波線</b>：<code>r(θ) = 楕円 × (1 + a·sin(kθ + 9t))</code>、文字も小刻みに揺らす。<b>雲形</b>：約1.5emおきの点を外向き1.2倍の制御点で結ぶ2次ベジェ。泡のしっぽ0.42→0.28→0.17em。</li>
+      <li>白い縁 → 黒い輪郭 → 白で塗る、の順で描き、黒い背景の上でも輪郭が見えるようにしています。</li>
+    </ul>
+
+    <h3 id="h6">7 縦書きの組版</h3>
+    <ul>
+      <li>右の行から左へ。1行の字数は画面の高さの42%に収まる数（4〜14字）。長い発話は末尾の数行だけ表示。</li>
+      <li>半角英数字は全角にして縦に立てる。「ー」「…」「〜」や括弧は90度回転。「、」「。」は右上へ0.55em、小書きの仮名は0.12em寄せる。</li>
+      <li>行頭禁則：句読点・閉じ括弧・長音・小書きの仮名が行頭に来るときは前の行にぶら下げる。</li>
+    </ul>
+
+    <h3 id="h7">8 場面推定（5種）</h3>
+    <ul>
+      <li><b>表情</b>（差分）：喜び＝笑顔 mouthSmile ÷ 0.35。驚き＝(0.6·目の見開き eyeWide + 0.4·眉上げ) ÷ 0.25。緊張・怒り＝(0.7·眉寄せ browDown + 0.3·鼻のしわ noseSneer) ÷ 0.25。落ち込み＝(0.6·口角下げ mouthFrown + 0.4·眉の内側だけ上がる量) ÷ 0.2。</li>
+      <li><b>声</b>（z、発話後6秒で減衰）：驚き＝0.5·(z(ピーク) − 1)/1.5 + 0.5·(z(高さ) − 1)/1.5。喜び＝(z(抑揚) + 0.5·z(高さ))/2。緊張＝(z(平均音量) + z(ピーク))/3。落ち込み＝(−z(平均音量) − z(抑揚) − 0.5·z(高さ))/3。</li>
+      <li><b>言葉</b>（8秒で減衰）：驚き＝えっ・まじ・うそ・本当・びっくり など。喜び＝嬉しい・楽しい・ありがとう・やった・最高 など。緊張＝怒・むかつ・ダメ・締め切り・本番 など。落ち込み＝悲しい・つらい・疲れ・不安・ごめん など。</li>
+    </ul>
+    <pre>驚き     = 0.8·表情 + 0.4·声 + 0.7·言葉 + 0.25·頭の動き
+喜び     = 0.9·表情 + 0.3·声 + 0.8·言葉
+緊張怒り = 0.9·表情 + 0.4·声 + 0.8·言葉 + 0.2·頭の動き
+落ち込み = 0.9·表情 + 0.4·声 + 0.8·言葉 + 0.3·暗さ
+日常     = 0.35（一定）</pre>
+    <p>頭の動き＝<code>(速さ − 0.8)/1.5</code>、暗さ＝<code>(0.35 − 顔の輝度)/0.2</code>（いずれも0〜1）。今の場面より0.1以上高い得点のときだけ切り替え、最低2秒維持します（驚きは0.8秒で割り込み可、最低2.5秒表示）。</p>
+
+    <h3 id="h8">9 場面ごとの構図と演出</h3>
+    <h4>構図（顔の大きさと位置）</h4>
+    <p>主役の顔は画面中央のやや上に置くと視線が集まり、三分割の交点に置くと安定します。また、余白の多い開いた構図は明るいテーマに、画面の上部に大きなものがある構図は不安や圧迫感につながります。これにもとづき、驚き・喜び・落ち込みでは顔を大きくし、場面に合う位置に配置します。</p>
+    <div class="tbl"><table>
+      <tr><th>場面</th><th>顔の窓の中心（画面の幅・高さに対する割合）</th><th>窓の半径（画面の高さに対する割合）</th><th>ねらい</th></tr>
+      <tr><td>日常</td><td>実際の顔の位置を追う</td><td>実際の大きさ</td><td>水平・安定した普通のコマ</td></tr>
+      <tr><td>驚き</td><td>(0.42, 0.48) 中央やや上</td><td>0.47（顔のアップ）</td><td>集中線の中心に大きく。驚きを最大化</td></tr>
+      <tr><td>喜び</td><td>(0.35, 0.48) 左の三分割線</td><td>0.43</td><td>右側を開けて光・シャボン玉・吹き出しの余白に</td></tr>
+      <tr><td>緊張・怒り</td><td>実際の位置を追う</td><td>実際の1.12倍</td><td>傾いたコマで不安定さを出す</td></tr>
+      <tr><td>落ち込み</td><td>(0.64, 0.66) 右下寄り</td><td>0.42</td><td>上に大きな暗い余白とタレ線を置き、沈み込む感じに</td></tr>
+    </table></div>
+    <p>カメラ映像は、顔の中心を基準に <code>出力x = 窓の中心x − 倍率×(カメラx − 顔の中心x)</code>、<code>出力y = 窓の中心y + 倍率×(カメラy − 顔の中心y)</code> で拡大・移動します（x の符号は鏡像のため）。倍率 = 目標の半径 ÷ (顔の大きさ×0.8) で、0.6〜3倍に制限します。構図は約0.5秒かけてなめらかに移ります。構図を固定する場面では、頭を少し動かしても顔は同じ位置にとどまります。</p>
+
+    <h4>コマと背景</h4>
+    <div class="tbl"><table>
+      <tr><th>場面</th><th>顔の窓（コマ）</th><th>背景・効果</th><th>漫符</th><th>根拠</th></tr>
+      <tr><td>日常</td><td>縦長の四角いコマ＋枠線</td><td>薄い網点トーン（12%、45度）</td><td>なし</td><td>基本のコマはシンプルな長方形。45度の網点は均一なグレーに見える</td></tr>
+      <tr><td>驚き</td><td>円形のコマ＋枠線</td><td>白地に集中線150本</td><td>こめかみの汗</td><td>集中線を加えると線画表情の驚きの認知が強まる。汗は動揺やショック</td></tr>
+      <tr><td>喜び</td><td>ぼかし縁の円</td><td>下が濃いグラデーショントーン、放射線、シャボン玉、キラキラ、淡い光</td><td>頬の照れ斜線</td><td>放射線は明るく嬉しい気持ち、シャボン玉・光はロマンチック。頬の斜線は照れ</td></tr>
+      <tr><td>緊張・怒り</td><td>傾けた四角いコマ＋太枠</td><td>ベタフラッシュ、上が暗いグラデーション、砂目ノイズ</td><td>怒りマーク</td><td>斜めのコマはスピードや衝撃。ベタフラは気づき・衝撃。十字の血管は怒り</td></tr>
+      <tr><td>落ち込み</td><td>もやもやのぼかし窓</td><td>上ほど暗いトーン、タレ線（背景と額）、砂目ノイズ</td><td>額の縦線</td><td>縦線（タレ線）は落ち込み・不安・ショック。上を暗くし霧のような質感に</td></tr>
+    </table></div>
+
+    <h3 id="h9">10 演出の描画方法</h3>
+    <ul>
+      <li><b>窓の形</b>：<code>箱の半径 = 1 / max(|cos(θ−傾き)|/ax, |sin(θ−傾き)|/ay)</code>、<code>r = R × lerp(1, 箱の半径, 四角さ) × (1 + もやもや度×0.15×揺らぎ)</code>。揺らぎは3θ・5θ・8θの正弦波の和。</li>
+      <li><b>マスク</b>：別キャンバスに窓を白で塗り（必要なら <code>blur()</code> で縁をぼかす）、顔に <code>destination-in</code> で重ねます。</li>
+      <li><b>コマ枠</b>：白い太線（余白）→ 黒い線。</li>
+      <li><b>網点トーン</b>：45度の格子に <code>半径 = セル × √(面積率/π)</code> の円。グラデーションは面積率を位置の関数に（喜び <code>0.28·y²</code>、落ち込み <code>0.15 + 0.6·(1−y)^1.5</code>）。開始時に一度だけ描きます。</li>
+      <li><b>集中線</b>：顔の中心から画面外まで細い三角形150本。内端は半径の1.3〜2.0倍で不揃い、幅0.004〜0.016rad、15%を間引き、6フレームごとに描き直し。</li>
+      <li><b>ベタフラッシュ</b>：黒で塗り、顔のまわりに白い芯（放射グラデーション）、そこから外へ先細りの白い光を90本。上部を暗くするグラデーションを重ねます。</li>
+      <li><b>放射線・シャボン玉・キラキラ・淡い光</b>：顔の縁から48本の灰色の線をゆっくり回転。下から漂う輪。sin で明滅する四芒星。白い放射グラデーション（0.35→0）を <code>screen</code> 合成。</li>
+      <li><b>タレ線</b>：背景は約9pxおきに上から垂れる不揃いな線。額は下へ消えるグラデーションの線。</li>
+      <li><b>砂目ノイズ</b>：半分の解像度で黒点を散らした画像3枚を毎フレーム切り替え。背景には強く、顔の上には1/4の濃さで重ねます。</li>
+      <li><b>場面の重ね合わせ</b>：場面ごとの重みを0.08ずつ目標へ近づけ、重い順に背景を重ねてクロスフェード。</li>
+    </ul>
+
+    <h3 id="h10">11 操作・通話・注意点</h3>
+    <ul>
+      <li>右上の設定ボタン（またはSキー）で設定パネルを出し入れできます。パネルは映像を見ながら調整できるよう、画面を覆わない形で開きます。ヘルプは ? ボタンかHキーです。</li>
+      <li>設定パネルでは、場面と吹き出しの手動固定、顔の描き方（ペン画・すっきり線画・漫画の線画・モノクロ・カラー）、デフォルメ、線やベタやトーンの量、マイク感度を変えられます。調整用のつまみは、選んだ描き方に関係するものだけが表示されます。</li>
+      <li>通話は PeerJS（WebRTC）で直接つながります。接続の仲介には公開サーバーを使っているので、常用する場合は自前のサーバーに置き換えてください。</li>
+      <li>音声認識はChrome向けの機能で、音声はGoogleのサーバーで文字に変換されます。研究で使う場合は、参加者への説明に含めてください。</li>
+      <li>線画化にはWebGLを使います。使えない環境では、自動的にモノクロ写真で描きます。</li>
+      <li>場面推定は、漫画の慣習にもとづく経験的なルールです。感情の判定としての妥当性は検証していないので、研究に使う場合は手動固定で条件をそろえるか、別途確かめてください。しきい値と重みは、コード内の <code>TUNE</code>、<code>PRIOR</code>、<code>BALLOON_RULES</code>、<code>SCENE_RULES</code>、<code>SCENES</code> にまとめてあります。</li>
+    </ul>
+
+    <h3 id="h11">12 参考にした事例・資料</h3>
+    <h4>漫画の顔・線画化</h4>
+    <ul>
+      <li><a href="https://www.houyhnhnm.jp/en/feature/561610" target="_blank" rel="noopener">HOUYHNHNM 掲載のアーティストインタビュー</a>：線を減らし、説明的にしない線画の考え方</li>
+      <li><a href="https://sabukaru.online/articles/less-is-more-yu-nagaba" target="_blank" rel="noopener">"Less is more"（sabukaru）</a>：白地に黒の細い線、少ない線で伝える表現</li>
+      <li><a href="https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter/index" target="_blank" rel="noopener">MediaPipe Image Segmenter（多クラス自撮り分割モデル）</a>：背景・髪・体の肌・顔の肌・服・その他の6クラス</li>
+      <li>Lorensen, W. E., Cline, H. E. "Marching Cubes", SIGGRAPH 1987（その2次元版のマーチングスクエアを使用）／Douglas, D., Peucker, T. "Algorithms for the reduction of the number of points required to represent a digitized line or its caricature", Cartographica 10(2), 1973／Chaikin, G. "An algorithm for high speed curve generation", Computer Graphics and Image Processing 3, 1974</li>
+      <li><a href="https://yamagata.repo.nii.ac.jp/record/1729/files/kiyoued-15-2-213to223.pdf" target="_blank" rel="noopener">三浦直是・山本広志「漫画の登場人物の顔の分析」山形大学紀要（教育科学）15(2), 2011</a>：瞳・目の縦幅・鼻・顔の縦横比の計測</li>
+      <li><a href="https://www.cs.princeton.edu/courses/archive/spring15/cos426/papers/Winnemoeller12.pdf" target="_blank" rel="noopener">Winnemöller, Kyprianidis, Olsen "XDoG: An eXtended difference-of-Gaussians compendium including advanced image stylization", Computers &amp; Graphics 36(6), 2012</a>：XDoG の式とパラメータ</li>
+      <li>Tomasi, C., Manduchi, R. "Bilateral Filtering for Gray and Color Images", Proc. ICCV, 1998：バイラテラルフィルタ</li>
+      <li><a href="https://en.wikipedia.org/wiki/Manga_iconography" target="_blank" rel="noopener">Manga iconography（Wikipedia）</a>：怒りマーク・照れの斜線・汗・縦線などの漫符</li>
+      <li><a href="https://www.japanesewithanime.com/2020/03/blushing-lines.html" target="_blank" rel="noopener">Blushing lines（Japanese with Anime）</a>：頬の斜線</li>
+    </ul>
+    <h4>構図・コマ</h4>
+    <ul>
+      <li><a href="https://www.clipstudio.net/oekaki/archives/151863" target="_blank" rel="noopener">イラスト構図の基本とテクニック（CLIP STUDIO）</a>：中央やや上・三分割・余白と明るさ・上部の大きなものと不安・斜めと不安定</li>
+      <li><a href="https://lifestyle.assist-all.co.jp/?p=56730" target="_blank" rel="noopener">コマ割りの基本ルールやジャンル別テクニック</a>：斜めのコマ・大ゴマ・変形ゴマ・緊張と静けさ</li>
+    </ul>
+    <h4>効果線・トーン</h4>
+    <ul>
+      <li><a href="https://sist.repo.nii.ac.jp/record/2000001/files/JAA11834968_29_119.pdf" target="_blank" rel="noopener">本多明生「集中線が線画表情の感情認知に及ぼす影響」『マンガ研究』29, 2023</a></li>
+      <li><a href="https://www.japanesewithanime.com/2020/04/background-effects.html" target="_blank" rel="noopener">Background effects</a>、<a href="https://www.japanesewithanime.com/2020/03/beta-flash.html" target="_blank" rel="noopener">Beta flash</a>、<a href="https://www.japanesewithanime.com/2020/03/blue-lines.html" target="_blank" rel="noopener">Blue lines</a>、<a href="https://www.japanesewithanime.com/2020/03/taresen.html" target="_blank" rel="noopener">Taresen</a>、<a href="https://www.japanesewithanime.com/2020/03/shaking-lines.html" target="_blank" rel="noopener">Shaking lines</a>（Japanese with Anime）</li>
+      <li><a href="https://tips.clip-studio.com/fr-fr/articles/10123?org=1" target="_blank" rel="noopener">How to Change Mood And Emotion In Your Manga（CLIP STUDIO TIPS）</a></li>
+      <li><a href="https://scrapbox.io/motoso/%E3%83%88%E3%83%BC%E3%83%B3%E3%81%AE%E5%9F%BA%E7%A4%8E%E7%9F%A5%E8%AD%98" target="_blank" rel="noopener">トーンの基礎知識（Scrapbox）</a></li>
+    </ul>
+    <h4>吹き出し・書体</h4>
+    <ul>
+      <li><a href="https://www.choge-blog.com/?p=97718" target="_blank" rel="noopener">漫画の吹き出しの種類と意味（choge blog）</a></li>
+      <li><a href="https://www.pref.kochi.lg.jp/doc/2019031400268/file_contents/file_20193203114140_1.pdf" target="_blank" rel="noopener">「漫画のルール」（高知県）</a></li>
+      <li><a href="https://art-science.org/journal/v18n3/v18n3pp97/artsci-v18n3pp97.pdf" target="_blank" rel="noopener">佐藤・澤野・鈴木・堀田「漫画のオブジェクト抽出に基づく映像化手法の提案」芸術科学会論文誌 18(3), 2019</a></li>
+      <li><a href="https://fontworks.co.jp/column/404/" target="_blank" rel="noopener">コミック(マンガ)書体って奥深い！（フォントワークス）</a>、<a href="https://note.com/soudakyoto_ikou/n/nd63330df85d8" target="_blank" rel="noopener">まんがタイムきららの「写植」を読む（note）</a>、<a href="https://goodfreefonts.com/4097/" target="_blank" rel="noopener">漫画のセリフでよく使われている日本語フォント50選</a>、<a href="https://forest.watch.impress.co.jp/docs/review/20131216_627503.html" target="_blank" rel="noopener">やさしさアンチック（窓の杜）</a></li>
+      <li>Google Fonts：<a href="https://fonts.google.com/specimen/Zen+Antique" target="_blank" rel="noopener">Zen Antique</a>、<a href="https://fonts.google.com/specimen/Reggae+One" target="_blank" rel="noopener">Reggae One</a>、<a href="https://fonts.google.com/specimen/Klee+One" target="_blank" rel="noopener">Klee One</a>、<a href="https://fonts.google.com/specimen/Shippori+Mincho" target="_blank" rel="noopener">Shippori Mincho</a></li>
+    </ul>
+    <h4>技術</h4>
+    <ul>
+      <li><a href="https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js" target="_blank" rel="noopener">MediaPipe Face Landmarker（Web版ガイド）</a>、<a href="https://developer.mozilla.org/ja/docs/Web/API/Web_Speech_API" target="_blank" rel="noopener">Web Speech API（MDN）</a>、<a href="https://peerjs.com/" target="_blank" rel="noopener">PeerJS</a></li>
+    </ul>
+    <p class="note">場面・構図・演出・デフォルメの対応は、上の資料にある慣習や知見を組み合わせて設計したものです。各資料がこの対応そのものを示しているわけではありません。</p>
+    <h3 id="h12">13 使用しているソフトウェア・書体のライセンス</h3>
+    <p>本アプリは次の外部のソフトウェア・モデル・書体・サービスを利用しています。各権利は、それぞれの権利者に帰属します。画面右下のコピーライト表示は、本アプリ独自のプログラムとデザインに対するものです。</p>
+    <div class="tbl"><table>
+      <tr><th>名称</th><th>用途</th><th>権利者</th><th>ライセンス・利用条件</th></tr>
+      <tr><td><a href="https://github.com/google-ai-edge/mediapipe" target="_blank" rel="noopener">MediaPipe Tasks Vision</a>（@mediapipe/tasks-vision 0.10.14）</td><td>顔のランドマーク・表情、領域分割の実行</td><td>Google LLC</td><td>Apache License 2.0</td></tr>
+      <tr><td><a href="https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js" target="_blank" rel="noopener">Face Landmarker モデル</a>、<a href="https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter/index" target="_blank" rel="noopener">Selfie Multiclass Segmentation モデル</a></td><td>顔の478点と表情、髪・顔・服などの領域</td><td>Google LLC</td><td>Google が公開する各モデルのモデルカードに記載の条件</td></tr>
+      <tr><td><a href="https://peerjs.com/" target="_blank" rel="noopener">PeerJS</a> 1.5.4</td><td>WebRTC による通話の接続</td><td>Michelle Bu, Eric Zhang ほか</td><td>MIT License。接続の仲介には PeerJS の公開サーバー（PeerServer Cloud）を利用</td></tr>
+      <tr><td>Web Speech API（ブラウザの音声認識）</td><td>話した言葉の文字化</td><td>ブラウザの提供者（Chrome では Google）</td><td>ブラウザおよび提供者の利用規約・プライバシーポリシーに従う</td></tr>
+      <tr><td><a href="https://www.jsdelivr.com/" target="_blank" rel="noopener">jsDelivr</a></td><td>上記ライブラリの配信</td><td>jsDelivr</td><td>jsDelivr の利用規約に従う</td></tr>
+      <tr><td><a href="https://fonts.google.com/" target="_blank" rel="noopener">Google Fonts</a> の書体：Dela Gothic One、M PLUS Rounded 1c、Zen Kaku Gothic New、Zen Antique、Reggae One、Klee One、Shippori Mincho、IBM Plex Mono</td><td>タイトル、画面の文字、吹き出しの書体</td><td>各書体の制作者</td><td>SIL Open Font License 1.1</td></tr>
+    </table></div>
+    <p class="note">ライセンスの全文は、各リンク先のリポジトリ・配布ページで確認できます。</p>
+  </div>
+</dialog>
+
+<div id="fontProbe" aria-hidden="true">
+  <span style="font-family:'Zen Antique'"></span>
+  <span style="font-family:'Reggae One'"></span>
+  <span style="font-family:'Klee One'"></span>
+  <span style="font-family:'Shippori Mincho';font-weight:500"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="module">
+import { FaceLandmarker, ImageSegmenter, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const WASM  = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const SEG_MODEL = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite";
+
+/* ===================== 調整用の定数 ===================== */
+const TUNE = { holdMs:4500, priorWeight:4, histMax:40 };
+const PRIOR = {
+  avg:{ m:18, s:5 }, peak:{ m:26, s:5 }, sd:{ m:2.2, s:0.9 }, jitter:{ m:0.45, s:0.2 }, st:{ m:8, s:4 },
+};
+const BALLOON_RULES = {
+  shout:   { th:1.4, f:(z,t,sc)=> 0.6*z.peak + 0.6*z.avg + 0.9*t.shout },
+  whisper: { th:1.2, f:(z,t,sc)=> -0.7*z.avg - 0.5*z.peak + 1.0*t.whisper },
+  tremble: { th:1.3, f:(z,t,sc)=> 1.0*z.jitter + 1.0*t.tremble + 0.4*sc.gloom },
+  mutter:  { th:1.0, f:(z,t,sc)=> -0.7*z.sd - 0.3*z.avg + 0.9*t.mutter },
+};
+const BALLOON_WORDS = {
+  shout:   ["！","!","おい","待って","まって","やめ","うわ","こら","ちょっと","すげ","やった","ふざけ","なにっ","ええっ"],
+  whisper: ["ここだけ","内緒","ないしょ","こっそり","秘密","ひみつ","実は","じつは","静かに","しーっ","小声"],
+  tremble: ["怖","こわ","やば","ごめんなさい","すみません","ひぃ","ひっ","震え","ふるえ"],
+  mutter:  ["…","まあ","まぁ","はあ","はぁ","どうせ","べつに","別に","なんか","うーん","ふーん","しょうがない","仕方ない"],
+};
+const SCENE_WORDS = {
+  surprise: ["えっ","ええ","まじ","マジ","うそ","嘘","本当","ほんと","びっくり","驚","まさか","信じられ","なんで","うわ"],
+  joy:      ["嬉し","うれし","楽し","たのし","好き","ありがとう","やった","最高","いいね","おいし","美味し","笑","かわいい","可愛","素敵","すてき","よかった","良かった","あはは","ははは","わーい","おめでと"],
+  tension:  ["怒","むかつ","ふざけ","だめ","ダメ","いい加減","うるさ","締め切り","締切","急いで","間に合わ","本番","緊張","許さ","危な"],
+  gloom:    ["悲し","かなし","寂し","さみし","辛い","つらい","疲れ","つかれ","無理","不安","心配","落ち込","ごめん","残念","しんど","だる","眠い","はぁ","はあ"],
+};
+const SCENE_RULES = {
+  calm:     ()=> 0.35,
+  surprise: (f,v,t,m)=> 0.8*f.surprise + 0.4*v.surprise + 0.7*t.surprise + 0.25*m.motion,
+  joy:      (f,v,t,m)=> 0.9*f.joy + 0.3*v.joy + 0.8*t.joy,
+  tension:  (f,v,t,m)=> 0.9*f.tension + 0.4*v.tension + 0.8*t.tension + 0.2*m.motion,
+  gloom:    (f,v,t,m)=> 0.9*f.gloom + 0.4*v.gloom + 0.8*t.gloom + 0.3*m.dark,
+};
+const BALLOONS = {
+  normal:  { name:"通常のセリフ",     font:"'Zen Antique', serif",     weight:400, size:1.00 },
+  shout:   { name:"叫び・怒り",       font:"'Reggae One', sans-serif", weight:400, size:1.30 },
+  whisper: { name:"小声・ささやき",   font:"'Zen Antique', serif",     weight:400, size:0.68 },
+  tremble: { name:"震え声・動揺",     font:"'Klee One', cursive",      weight:400, size:0.95 },
+  mutter:  { name:"つぶやき・独り言", font:"'Shippori Mincho', serif", weight:500, size:0.92 },
+};
+/* 場面：窓の形、構図（layout：中心と半径の割合。null は実際の顔を追う）、顔の写真補正、目の拡大率 */
+const SCENES = {
+  calm:     { name:"日常",           win:{ square:1,    ax:1.00, ay:1.20, tilt:0,     blob:0,    feather:0,  frame:1   }, layout:null,                    zoom:1.00, contrast:1.10, bright:1.02, eye:[1.35,1.50] },
+  surprise: { name:"驚き",           win:{ square:0,    ax:1.00, ay:1.00, tilt:0,     blob:0,    feather:0,  frame:1   }, layout:{ x:0.42, y:0.48, r:0.47 }, zoom:1,   contrast:1.25, bright:1.05, eye:[1.55,1.75] },
+  joy:      { name:"喜び",           win:{ square:0,    ax:1.00, ay:1.00, tilt:0,     blob:0.12, feather:22, frame:0   }, layout:{ x:0.35, y:0.48, r:0.43 }, zoom:1,   contrast:1.00, bright:1.10, eye:[1.35,1.45] },
+  tension:  { name:"緊張・怒り",     win:{ square:1,    ax:0.95, ay:1.22, tilt:-0.14, blob:0,    feather:0,  frame:1.5 }, layout:null,                    zoom:1.12, contrast:1.45, bright:0.95, eye:[1.20,1.25] },
+  gloom:    { name:"落ち込み・不安", win:{ square:0.25, ax:1.00, ay:1.10, tilt:0,     blob:1,    feather:30, frame:0   }, layout:{ x:0.64, y:0.66, r:0.42 }, zoom:1,   contrast:1.05, bright:0.80, eye:[1.25,1.30] },
+};
+const SCENE_KEYS = Object.keys(SCENES);
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const c01 = v => clamp(v, 0, 1);
+const lerp = (a,b,k) => a + (b-a)*k;
+const mean = xs => xs.reduce((a,b)=>a+b,0)/xs.length;
+const sdev = xs => { const m = mean(xs); return Math.sqrt(mean(xs.map(x => (x-m)*(x-m)))); };
+const median = xs => { const s = [...xs].sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; };
+function rng(seed){
+  return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+
+let W = 854, H = 480, camW = 640, offX = 107;
+const cam = document.createElement("video");
+cam.playsInline = true; cam.muted = true;
+const out = $("#out"), octx = out.getContext("2d");
+const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
+const face = document.createElement("canvas"), fctx = face.getContext("2d");
+const fx = document.createElement("canvas"), xctx = fx.getContext("2d");
+const tiny = document.createElement("canvas"); tiny.width = tiny.height = 16;
+const tctx = tiny.getContext("2d", { willReadFrequently:true });
+
+let landmarker, segmenter, localStream, sendStream, analyser, timeBuf, sampleRate, peer, currentCall;
+const LAYERS = {};
+
+const S = {
+  // 顔（カメラ座標）
+  fcx:320, fcy:240, size:180, lastSeen:0, vis:0, kp:null, seen:false,
+  // 表示上の顔（出力座標）
+  cx:427, cy:240, R:150, vx:427, vy:240, vz:1, mx:427, my:300,
+  bs:{}, bsBase:{}, faceScore:{ surprise:0, joy:0, tension:0, gloom:0 },
+  motion:0, luma:0.5, prevCx:null, prevCy:null, prevT:0, frameNo:0,
+  P:{ ...SCENES.calm.win }, contrast:1.1, bright:1, eyeS:[1.35,1.5],
+  scene:"calm", sceneSince:0, smode:"auto", sw:{ calm:1, surprise:0, joy:0, tension:0, gloom:0 }, sScore:{},
+  level:0, floor:-60, dbHist:[], frames:[], f0:0, speaking:false, lastVoice:-1e9, sens:0.5,
+  hist:[], lastZ:null, lastZt:-1e9, sceneTxt:{ surprise:0, joy:0, tension:0, gloom:0 }, sceneTxtT:-1e9,
+  bmode:"auto", bScore:{},
+  faceStyle:"pen", penW:1, penHair:"line", penBody:true, bsRaw:{}, lm:null, seg:null, segOK:false, pen:null,
+  deform:0.7, lineP:18, blackEps:0.36, toneTh:0.54, cleanT:0.0192, cleanDark:0.1,
+};
+
+/* ===================== 開始 ===================== */
+$("#startBtn").addEventListener("click", start);
+async function start(){
+  $("#startBtn").disabled = true;
+  setStatus("カメラとマイクを準備中…");
+  try{
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video:{ width:{ideal:640}, height:{ideal:480} },
+      audio:{ echoCancellation:true, noiseSuppression:true }
+    });
+  }catch(e){
+    setStatus("カメラかマイクを使えませんでした。ブラウザの許可を確認してください。");
+    $("#startBtn").disabled = false; return;
+  }
+  cam.srcObject = localStream;
+  await cam.play();
+  setupSize(cam.videoWidth || 640, cam.videoHeight || 480);
+
+  const ac = new AudioContext();
+  sampleRate = ac.sampleRate;
+  analyser = ac.createAnalyser();
+  analyser.fftSize = 2048;
+  ac.createMediaStreamSource(localStream).connect(analyser);
+  timeBuf = new Float32Array(analyser.fftSize);
+
+  setStatus("顔の解析モデルを読み込み中…");
+  const fileset = await FilesetResolver.forVisionTasks(WASM);
+  const opts = d => ({ baseOptions:{ modelAssetPath:MODEL, delegate:d }, runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true });
+  try{ landmarker = await FaceLandmarker.createFromOptions(fileset, opts("GPU")); }
+  catch{ landmarker = await FaceLandmarker.createFromOptions(fileset, opts("CPU")); }
+  // 髪・顔・首・服の領域分割（ペン画の輪郭に使う）
+  const sopts = d => ({ baseOptions:{ modelAssetPath:SEG_MODEL, delegate:d }, runningMode:"VIDEO", outputConfidenceMasks:true, outputCategoryMask:false });
+  try{ segmenter = await ImageSegmenter.createFromOptions(fileset, sopts("GPU")); S.segOK = true; }
+  catch{ try{ segmenter = await ImageSegmenter.createFromOptions(fileset, sopts("CPU")); S.segOK = true; }catch(e){ console.warn("領域分割を使えません", e); } }
+
+  sendStream = out.captureStream(30);
+  localStream.getAudioTracks().forEach(t => sendStream.addTrack(t));
+
+  document.body.classList.add("started");
+  $("#startBtn").textContent = "開始済み";
+  initPeer();
+  initSpeech();
+  requestAnimationFrame(loop);
+}
+function setupSize(cw, ch){
+  camW = cw; H = ch;
+  W = Math.max(camW, Math.round(H*16/9));
+  offX = Math.round((W - camW)/2);
+  for (const c of [out, mask, face, fx]){ c.width = W; c.height = H; }
+  S.fcx = camW/2; S.fcy = H/2; S.size = H*0.4;
+  S.vx = W/2; S.vy = H/2;
+  buildLayers();
+  if (!initGL()){
+    if (S.faceStyle === "lineart" || S.faceStyle === "clean"){ S.faceStyle = "pen"; $("#faceStyle").value = "pen"; }
+    $("#faceStyle").querySelectorAll('option[value="lineart"],option[value="clean"]').forEach(o => o.disabled = true);
+    syncStyleSliders();
+  }
+}
+
+/* ===================== 顔の線画化（WebGL） ===================== */
+const VS = `attribute vec2 a; varying vec2 uv; void main(){ uv = (a + 1.0)*0.5; gl_Position = vec4(a, 0.0, 1.0); }`;
+/* 1. デフォルメ＋明るさ補正＋時間方向のならし */
+const FS_WARP = `precision highp float;
+varying vec2 uv;
+uniform sampler2D uVid; uniform sampler2D uPrev; uniform vec2 uRes; uniform float uKeep;
+uniform vec2 uEyeL, uEyeR; uniform float uEyeRad; uniform vec2 uEyeS;
+uniform vec2 uNose; uniform float uNoseR, uNoseK;
+uniform vec2 uMouth, uChin, uFaceC; uniform float uHalfW, uSlim;
+uniform float uMean, uGain;
+vec2 bulge(vec2 p, vec2 c, float r, vec2 s){
+  vec2 d = p - c;
+  float t = length(d/vec2(1.0, 1.15))/r;
+  if (t >= 1.0) return p;
+  float w = 1.0 - t*t; w = w*w;
+  return c + d*mix(vec2(1.0), 1.0/s, w);
+}
+void main(){
+  vec2 p = vec2(uv.x, 1.0 - uv.y)*uRes;
+  vec2 q = bulge(p, uEyeL, uEyeRad, uEyeS);
+  q = bulge(q, uEyeR, uEyeRad, uEyeS);
+  vec2 dn = q - uNose; float tn = length(dn)/uNoseR;
+  if (tn < 1.0){ float w = 1.0 - tn*tn; q = uNose + dn*(1.0 + uNoseK*w*w); }
+  float span = max(uChin.y - uMouth.y, 1.0);
+  float ty = clamp((q.y - uMouth.y)/span, 0.0, 1.3);
+  float dx = q.x - uFaceC.x;
+  float fall = exp(-pow(abs(dx)/(uHalfW*1.4), 4.0));
+  q.x = uFaceC.x + dx*(1.0 + uSlim*smoothstep(0.0, 1.0, ty)*fall);
+  vec3 c = texture2D(uVid, q/uRes).rgb;
+  float L = dot(c, vec3(0.299, 0.587, 0.114));
+  L = clamp(0.62 + (L - uMean)*uGain, 0.0, 1.0);
+  float prev = texture2D(uPrev, uv).r;
+  L = mix(L, prev, uKeep);
+  gl_FragColor = vec4(L, L, L, 1.0);
+}`;
+/* 2. バイラテラルフィルタ（縦横に分けて近似）：輪郭を残して肌の凹凸とノイズを平らにする */
+const FS_BILAT = `precision highp float;
+varying vec2 uv;
+uniform sampler2D uTex; uniform vec2 uStep; uniform float uSs, uSr;
+void main(){
+  float c = texture2D(uTex, uv).r;
+  float a = 0.0, w = 0.0;
+  for (int i = -7; i <= 7; i++){
+    float x = float(i);
+    float v = texture2D(uTex, uv + uStep*x).r;
+    float k = exp(-x*x/(2.0*uSs*uSs) - (v - c)*(v - c)/(2.0*uSr*uSr));
+    a += v*k; w += k;
+  }
+  gl_FragColor = vec4(a/w, 0.0, 0.0, 1.0);
+}`;
+/* 3. 2種類のガウスぼかし（σ と 1.6σ） */
+const FS_BLUR = `precision highp float;
+varying vec2 uv;
+uniform sampler2D uTex; uniform vec2 uStep; uniform float uS1; uniform float uPass;
+void main(){
+  float s2 = uS1*1.6;
+  float a1 = 0.0, a2 = 0.0, w1 = 0.0, w2 = 0.0;
+  for (int i = -9; i <= 9; i++){
+    float x = float(i);
+    vec4 t = texture2D(uTex, uv + uStep*x);
+    float v2 = uPass < 0.5 ? t.r : t.g;
+    float k1 = exp(-x*x/(2.0*uS1*uS1));
+    float k2 = exp(-x*x/(2.0*s2*s2));
+    a1 += t.r*k1; w1 += k1; a2 += v2*k2; w2 += k2;
+  }
+  gl_FragColor = vec4(a1/w1, a2/w2, 0.0, 1.0);
+}`;
+/* 4. 線画：uMode 0 = 線＋ベタ＋トーン（XDoG）、1 = すっきり線画（DoG の暗い側だけを線に） */
+const FS_XDOG = `precision highp float;
+varying vec2 uv;
+uniform sampler2D uTex; uniform vec2 uRes; uniform float uMode;
+uniform float uP, uEps, uPhi, uToneTh, uCell;
+uniform float uT, uDark;
+uniform vec2 uNose; uniform float uNoseR, uNoseFade;
+float tanh1(float x){ x = clamp(x, -10.0, 10.0); float e = exp(2.0*x); return (e - 1.0)/(e + 1.0); }
+void main(){
+  vec4 g = texture2D(uTex, uv);
+  vec2 p = vec2(uv.x, 1.0 - uv.y)*uRes;
+  float v;
+  if (uMode < 0.5){
+    float S = (1.0 + uP)*g.r - uP*g.g;
+    float line = S >= uEps ? 1.0 : 1.0 + tanh1(uPhi*(S - uEps));
+    float tone = 1.0;
+    if (S < uToneTh){
+      float cov = mix(0.5, 0.1, clamp((S - uEps)/(uToneTh - uEps), 0.0, 1.0));
+      vec2 r = vec2(p.x + p.y, p.x - p.y)*0.70710678/uCell;
+      tone = length(fract(r) - 0.5) < sqrt(cov/3.14159) ? 0.0 : 1.0;
+    }
+    v = min(line, tone);
+  } else {
+    float D = g.r - g.g;                                  // 輪郭の暗い側で負になる
+    float line = smoothstep(-uT, -uT*0.45, D);            // なめらかな縁の線
+    float fill = smoothstep(uDark - 0.03, uDark + 0.03, g.r); // ごく暗い所（瞳など）だけ黒く
+    v = min(line, fill);
+  }
+  float nd = length(p - uNose)/uNoseR;
+  float fade = uNoseFade*(1.0 - smoothstep(0.5, 1.0, nd))*step(nd, 1.0);
+  v = max(v, smoothstep(0.4, 0.7, fade));                 // 鼻の線を消す（灰色を残さない）
+  gl_FragColor = vec4(v, v, v, 1.0);
+}`;
+/* 5. 孤立点の除去と輪郭のなめらか化 */
+const FS_CLEAN = `precision highp float;
+varying vec2 uv;
+uniform sampler2D uTex; uniform vec2 uTexel; uniform float uMinN, uSoft;
+void main(){
+  float c = texture2D(uTex, uv).r;
+  float sum = 0.0, dark = 0.0;
+  for (int y = -1; y <= 1; y++){
+    for (int x = -1; x <= 1; x++){
+      float v = texture2D(uTex, uv + vec2(float(x), float(y))*uTexel).r;
+      sum += v; dark += v < 0.5 ? 1.0 : 0.0;
+    }
+  }
+  float v = c;
+  if (c < 0.5 && dark < uMinN) v = 1.0;
+  else v = mix(c, sum/9.0, uSoft);
+  gl_FragColor = vec4(v, v, v, 1.0);
+}`;
+/* 描き方ごとのパラメータ */
+const STYLE_GL = {
+  lineart: { mode:0, keep:0.45, ss:2.5, sr:0.10, sigma:1.0, minN:3, soft:0.25 },
+  clean:   { mode:1, keep:0.55, ss:4.0, sr:0.07, sigma:1.5, minN:4, soft:0.45 },
+};
+const MG = {};
+function initGL(){
+  try{
+    const c = document.createElement("canvas"); c.width = camW; c.height = H;
+    let gl = c.getContext("webgl2", { preserveDrawingBuffer:true }), half = false, gl2 = !!gl;
+    if (gl) half = !!gl.getExtension("EXT_color_buffer_float");
+    else gl = c.getContext("webgl", { preserveDrawingBuffer:true });
+    if (!gl) return false;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const prog = (fs, texName) => { const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, "a"); gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      p.loc = {}; p.texName = texName; return p; };
+    const tex = (w, h) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      if (w){
+        if (gl2 && half) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+        else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      }
+      return t; };
+    const fbo = () => { const t = tex(camW, H), f = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("fbo");
+      gl.clearColor(0.62, 0.62, 0.62, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return { t, f }; };
+    Object.assign(MG, { gl, c, ok:true, flip:0 });
+    MG.warp  = prog(FS_WARP, "uVid");
+    MG.bilat = prog(FS_BILAT, "uTex");
+    MG.blur  = prog(FS_BLUR, "uTex");
+    MG.xdog  = prog(FS_XDOG, "uTex");
+    MG.clean = prog(FS_CLEAN, "uTex");
+    MG.vid = tex(0, 0);
+    MG.A = [fbo(), fbo()];                 // 時間方向のならし用に交互に使う
+    MG.B = fbo(); MG.C = fbo(); MG.D = fbo(); MG.E = fbo(); MG.F = fbo();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    return true;
+  }catch(e){ console.warn("WebGL を使えないため線画化を無効にします", e); MG.ok = false; return false; }
+}
+function u(p, name, ...v){
+  const gl = MG.gl;
+  if (!(name in p.loc)) p.loc[name] = gl.getUniformLocation(p, name);
+  const l = p.loc[name];
+  if (v.length === 1) gl.uniform1f(l, v[0]); else gl.uniform2f(l, v[0], v[1]);
+}
+function pass(p, src, dst, src2){
+  const gl = MG.gl;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.f : null);
+  gl.viewport(0, 0, camW, H);
+  gl.useProgram(p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src);
+  if (!("__t0" in p.loc)) p.loc.__t0 = gl.getUniformLocation(p, p.texName);
+  gl.uniform1i(p.loc.__t0, 0);
+  if (src2){
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, src2);
+    if (!("__t1" in p.loc)) p.loc.__t1 = gl.getUniformLocation(p, "uPrev");
+    gl.uniform1i(p.loc.__t1, 1);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+function renderManga(){
+  const gl = MG.gl, k = S.kp;
+  if (!k) return false;
+  const st = STYLE_GL[S.faceStyle];
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, MG.vid);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cam);
+  const d = S.deform;
+  const es = [1 + d/0.7*(S.eyeS[0]-1), 1 + d/0.7*(S.eyeS[1]-1)];
+  const cur = MG.A[MG.flip], prev = MG.A[1 - MG.flip];
+  MG.flip = 1 - MG.flip;
+  // 1. デフォルメ・明るさ補正・時間方向のならし
+  gl.useProgram(MG.warp);
+  u(MG.warp, "uRes", camW, H); u(MG.warp, "uKeep", st.keep);
+  u(MG.warp, "uEyeL", k.eyeL[0], k.eyeL[1]); u(MG.warp, "uEyeR", k.eyeR[0], k.eyeR[1]);
+  u(MG.warp, "uEyeRad", k.eyeW*0.9); u(MG.warp, "uEyeS", es[0], es[1]);
+  u(MG.warp, "uNose", k.nose[0], k.nose[1]); u(MG.warp, "uNoseR", S.size*0.16); u(MG.warp, "uNoseK", 0.5*d);
+  u(MG.warp, "uMouth", k.mouth[0], k.mouth[1]); u(MG.warp, "uChin", k.chin[0], k.chin[1]);
+  u(MG.warp, "uFaceC", S.fcx, S.fcy); u(MG.warp, "uHalfW", S.size*0.45); u(MG.warp, "uSlim", 0.25*d);
+  u(MG.warp, "uMean", S.luma); u(MG.warp, "uGain", 1.4);
+  pass(MG.warp, MG.vid, cur, prev.t);
+  // 2. バイラテラルフィルタ
+  gl.useProgram(MG.bilat);
+  u(MG.bilat, "uSs", st.ss); u(MG.bilat, "uSr", st.sr);
+  u(MG.bilat, "uStep", 1/camW, 0); pass(MG.bilat, cur.t, MG.B);
+  u(MG.bilat, "uStep", 0, 1/H);    pass(MG.bilat, MG.B.t, MG.C);
+  // 3. ガウスぼかし2種
+  gl.useProgram(MG.blur);
+  u(MG.blur, "uS1", st.sigma);
+  u(MG.blur, "uStep", 1/camW, 0); u(MG.blur, "uPass", 0); pass(MG.blur, MG.C.t, MG.D);
+  u(MG.blur, "uStep", 0, 1/H);    u(MG.blur, "uPass", 1); pass(MG.blur, MG.D.t, MG.E);
+  // 4. 線画
+  gl.useProgram(MG.xdog);
+  u(MG.xdog, "uRes", camW, H); u(MG.xdog, "uMode", st.mode);
+  u(MG.xdog, "uP", S.lineP); u(MG.xdog, "uEps", S.blackEps); u(MG.xdog, "uPhi", 30);
+  u(MG.xdog, "uToneTh", S.toneTh); u(MG.xdog, "uCell", 3.6);
+  u(MG.xdog, "uT", S.cleanT); u(MG.xdog, "uDark", S.cleanDark);
+  u(MG.xdog, "uNose", k.nose[0], k.nose[1]); u(MG.xdog, "uNoseR", S.size*0.2); u(MG.xdog, "uNoseFade", 0.9*d);
+  pass(MG.xdog, MG.E.t, MG.F);
+  // 5. 孤立点の除去と輪郭のなめらか化 → 画面へ
+  gl.useProgram(MG.clean);
+  u(MG.clean, "uTexel", 1/camW, 1/H); u(MG.clean, "uMinN", st.minN); u(MG.clean, "uSoft", st.soft);
+  pass(MG.clean, MG.F.t, null);
+  return true;
+}
+
+/* ===================== トーン・ノイズの事前描画 ===================== */
+function makeTone(w, h, cell, density, bg="#fff", fg="#141414"){
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d");
+  x.fillStyle = bg; x.fillRect(0,0,w,h); x.fillStyle = fg;
+  const ca = Math.SQRT1_2, sa = Math.SQRT1_2, D = Math.hypot(w,h)/2 + cell;
+  for (let uu=-D; uu<=D; uu+=cell){
+    for (let v=-D; v<=D; v+=cell){
+      const px = w/2 + uu*ca - v*sa, py = h/2 + uu*sa + v*ca;
+      if (px < -cell || py < -cell || px > w+cell || py > h+cell) continue;
+      const dd = density(px/w, py/h);
+      if (dd <= 0.004) continue;
+      x.beginPath(); x.arc(px, py, cell*Math.sqrt(Math.min(dd, 0.78)/Math.PI), 0, Math.PI*2); x.fill();
+    }
+  }
+  return c;
+}
+function makeNoise(w, h, p, seed){
+  const c = document.createElement("canvas"); c.width = Math.ceil(w/2); c.height = Math.ceil(h/2);
+  const x = c.getContext("2d");
+  const img = x.createImageData(c.width, c.height);
+  const r = rng(seed);
+  for (let i=0;i<img.data.length;i+=4){
+    if (r() < p){ img.data[i]=img.data[i+1]=img.data[i+2]=10; img.data[i+3]=200 + r()*55; }
+  }
+  x.putImageData(img, 0, 0);
+  return c;
+}
+function buildLayers(){
+  const cell = Math.max(5, Math.round(H/80));
+  LAYERS.calm  = makeTone(W, H, cell, () => 0.12);
+  LAYERS.joy   = makeTone(W, H, cell, (x,y) => 0.28*y*y, "#fff", "#5a5a5a");
+  LAYERS.gloom = makeTone(W, H, cell, (x,y) => 0.15 + 0.6*Math.pow(1-y, 1.5), "#d8d8d8", "#0e0e0e");
+  LAYERS.noise = [0,1,2].map(i => makeNoise(W, H, 0.07, 11+i));
+  const r = rng(77);
+  LAYERS.tare = [];
+  for (let x=4; x<W; x+=7 + r()*5) LAYERS.tare.push({ x, len:H*(0.18 + r()*0.5), w:0.8 + r()*0.9 });
+}
+
+/* ===================== 毎フレーム ===================== */
+let lastVideoTime = -1;
+function loop(now){
+  S.frameNo++;
+  if (cam.currentTime !== lastVideoTime){
+    lastVideoTime = cam.currentTime;
+    trackFace(landmarker.detectForVideo(cam, now), now);
+    if (S.faceStyle === "pen" && segmenter && S.frameNo % 2 === 0){
+      try{ segmenter.segmentForVideo(cam, now, onSegment); }catch(e){}
+    }
+  }
+  S.vis = lerp(S.vis, (now - S.lastSeen < 1500) ? 1 : 0, 0.06);
+  analyzeAudio(now);
+  updateScene(now);
+  updateView();
+  updateBalloons(now);
+  draw(now/1000);
+  updateHud(now);
+  requestAnimationFrame(loop);
+}
+
+/* ===================== 顔：位置・ランドマーク・表情 ===================== */
+const BS_NAMES = ["mouthSmileLeft","mouthSmileRight","eyeWideLeft","eyeWideRight","browInnerUp","browOuterUpLeft","browOuterUpRight",
+                  "browDownLeft","browDownRight","noseSneerLeft","noseSneerRight","mouthFrownLeft","mouthFrownRight"];
+function trackFace(res, now){
+  if (!res || !res.faceLandmarks || !res.faceLandmarks.length) return;
+  const lm = res.faceLandmarks[0];
+  let x0=1, y0=1, x1=0, y1=0;
+  for (const p of lm){ if (p.x<x0) x0=p.x; if (p.x>x1) x1=p.x; if (p.y<y0) y0=p.y; if (p.y>y1) y1=p.y; }
+  const tx = (x0+x1)/2*camW, ty = (y0+y1)/2*H;
+  const ts = Math.max((x1-x0)*camW, (y1-y0)*H);
+  if (!S.seen){ S.fcx = tx; S.fcy = ty; S.size = ts; S.vx = offX + camW - tx; S.vy = ty; S.seen = true; }
+  S.fcx = lerp(S.fcx, tx, 0.35); S.fcy = lerp(S.fcy, ty, 0.35); S.size = lerp(S.size, ts, 0.2);
+  S.lastSeen = now;
+  const lmPx = lm.map(p => [p.x*camW, p.y*H]);
+  if (!S.lm || S.lm.length !== lmPx.length) S.lm = lmPx;
+  else for (let i=0;i<lmPx.length;i++){ S.lm[i][0] = lerp(S.lm[i][0], lmPx[i][0], 0.55); S.lm[i][1] = lerp(S.lm[i][1], lmPx[i][1], 0.55); }
+
+  // 主要なランドマーク（カメラの画素座標）
+  const P = i => [lm[i].x*camW, lm[i].y*H];
+  const mid = (a,b) => [(a[0]+b[0])/2, (a[1]+b[1])/2];
+  const has = lm.length > 473;
+  const raw = {
+    eyeL: mid(P(33), P(133)), eyeR: mid(P(362), P(263)),
+    irisL: has ? P(468) : mid(P(33), P(133)), irisR: has ? P(473) : mid(P(362), P(263)),
+    irisRad: has ? Math.hypot(P(468)[0]-P(469)[0], P(468)[1]-P(469)[1]) : ts*0.03,
+    eyeW: (Math.hypot(P(33)[0]-P(133)[0], P(33)[1]-P(133)[1]) + Math.hypot(P(362)[0]-P(263)[0], P(362)[1]-P(263)[1]))/2,
+    nose: P(1), mouth: mid(P(13), P(14)), chin: P(152),
+    cheekL: P(50), cheekR: P(280), fore: P(10), foreL: P(67), foreR: P(297), templeL: P(127), templeR: P(356),
+  };
+  if (!S.kp) S.kp = raw;
+  else for (const key in raw){
+    if (Array.isArray(raw[key])) S.kp[key] = [lerp(S.kp[key][0], raw[key][0], 0.5), lerp(S.kp[key][1], raw[key][1], 0.5)];
+    else S.kp[key] = lerp(S.kp[key], raw[key], 0.5);
+  }
+
+  if (S.prevCx !== null && now > S.prevT){
+    const sp = Math.hypot(tx - S.prevCx, ty - S.prevCy)/Math.max(ts,1) / ((now - S.prevT)/1000);
+    S.motion = lerp(S.motion, sp, 0.1);
+  }
+  S.prevCx = tx; S.prevCy = ty; S.prevT = now;
+
+  if (S.frameNo % 15 === 0){
+    try{
+      tctx.drawImage(cam, x0*camW, y0*H, (x1-x0)*camW, (y1-y0)*H, 0, 0, 16, 16);
+      const d = tctx.getImageData(0,0,16,16).data;
+      let s = 0; for (let i=0;i<d.length;i+=4) s += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      S.luma = s/(256*255);
+    }catch{}
+  }
+
+  if (res.faceBlendshapes && res.faceBlendshapes.length){
+    for (const c of res.faceBlendshapes[0].categories){
+      S.bsRaw[c.categoryName] = c.score;
+      if (!BS_NAMES.includes(c.categoryName)) continue;
+      const v = c.score, n = c.categoryName;
+      if (S.bsBase[n] === undefined) S.bsBase[n] = v;
+      S.bsBase[n] += (v - S.bsBase[n]) * (v < S.bsBase[n] ? 0.02 : 0.0005);
+      S.bs[n] = v - S.bsBase[n];
+    }
+    const g = n => S.bs[n] || 0;
+    const avg2 = (a,b) => (g(a)+g(b))/2;
+    const target = {
+      joy:      c01(avg2("mouthSmileLeft","mouthSmileRight")/0.35),
+      surprise: c01((0.6*avg2("eyeWideLeft","eyeWideRight") + 0.4*(g("browInnerUp") + avg2("browOuterUpLeft","browOuterUpRight"))/2)/0.25),
+      tension:  c01((0.7*avg2("browDownLeft","browDownRight") + 0.3*avg2("noseSneerLeft","noseSneerRight"))/0.25),
+      gloom:    c01((0.6*avg2("mouthFrownLeft","mouthFrownRight") + 0.4*Math.max(0, g("browInnerUp") - avg2("browOuterUpLeft","browOuterUpRight")))/0.2),
+    };
+    for (const k in target) S.faceScore[k] = lerp(S.faceScore[k], target[k], 0.15);
+  }
+}
+/* カメラ座標 → 出力座標（鏡像・拡大・移動） */
+const camToOut = (x, y) => [S.vx - S.vz*(x - S.fcx), S.vy + S.vz*(y - S.fcy)];
+
+/* ===================== 声の解析 ===================== */
+function analyzeAudio(now){
+  analyser.getFloatTimeDomainData(timeBuf);
+  let sum = 0;
+  for (let i=0;i<timeBuf.length;i++) sum += timeBuf[i]*timeBuf[i];
+  const db = 20*Math.log10(Math.sqrt(sum/timeBuf.length) + 1e-8);
+  S.dbHist.push({ t:now, db });
+  while (S.dbHist.length && now - S.dbHist[0].t > 6000) S.dbHist.shift();
+  if (S.frameNo % 20 === 0 && S.dbHist.length > 30){
+    const s = S.dbHist.map(d => d.db).sort((a,b)=>a-b);
+    S.floor = Math.max(-90, s[Math.floor(s.length*0.1)]);
+  }
+  const rel = db - S.floor;
+  const voiced = rel > 6 + (1 - S.sens)*8 && db > -75;
+  S.level = lerp(S.level, c01(rel/30), rel/30 > S.level ? 0.5 : 0.12);
+  let st = null;
+  if (voiced){
+    S.lastVoice = now;
+    const f = detectPitch(timeBuf, sampleRate);
+    if (f){ S.f0 = f; st = 12*Math.log2(f/110); }
+  }
+  S.frames.push({ t:now, rel, voiced, st });
+  while (S.frames.length && now - S.frames[0].t > 15000) S.frames.shift();
+  S.speaking = now - S.lastVoice < 500;
+}
+function detectPitch(buf, sr){
+  const n = 1024;
+  let e = 0;
+  for (let i=0;i<n;i++) e += buf[i]*buf[i];
+  e /= n;
+  if (e < 1e-5) return 0;
+  const minLag = Math.floor(sr/400), maxLag = Math.floor(sr/75);
+  let best = 0, bestLag = 0;
+  for (let lag=minLag; lag<=maxLag; lag++){
+    let c = 0;
+    for (let i=0;i<n;i++) c += buf[i]*buf[i+lag];
+    c /= n;
+    if (c > best){ best = c; bestLag = lag; }
+  }
+  if (!bestLag || best/e < 0.5) return 0;
+  return sr/bestLag;
+}
+function features(from){
+  const fr = S.frames.filter(f => f.t >= from);
+  const voiced = fr.filter(f => f.voiced);
+  if (voiced.length < 10) return null;
+  const rels = voiced.map(f => f.rel).sort((a,b)=>a-b);
+  const sts = voiced.filter(f => f.st !== null).map(f => f.st);
+  const deltas = [];
+  for (let i=1;i<fr.length;i++){
+    const a = fr[i-1], b = fr[i];
+    if (a.st !== null && b.st !== null && b.t - a.t < 50){
+      const d = Math.abs(b.st - a.st);
+      if (d < 3) deltas.push(d);
+    }
+  }
+  return {
+    avg: mean(rels), peak: rels[Math.floor(rels.length*0.9)],
+    sd: sts.length >= 6 ? sdev(sts) : null, st: sts.length >= 6 ? mean(sts) : null,
+    jitter: deltas.length >= 6 ? median(deltas) : null,
+  };
+}
+function baseline(key){
+  const xs = S.hist.map(h => h[key]).filter(v => v !== null);
+  const p = PRIOR[key], K = TUNE.priorWeight, n = xs.length;
+  const m = (p.m*K + xs.reduce((a,b)=>a+b,0))/(K+n);
+  const v = (p.s*p.s*K + xs.reduce((a,b)=>a+(b-m)*(b-m),0))/(K+n);
+  return { m, s:Math.max(Math.sqrt(v), p.s*0.35) };
+}
+function zOf(f){
+  const z = {};
+  for (const k of Object.keys(PRIOR)){
+    if (!f || f[k] === null || f[k] === undefined){ z[k] = 0; continue; }
+    const b = baseline(k);
+    z[k] = clamp((f[k] - b.m)/b.s, -4, 4);
+  }
+  return z;
+}
+function wordScore(text, list){
+  let hits = 0;
+  for (const w of list) if (text.includes(w)) hits++;
+  return c01(hits*0.7);
+}
+function textCues(text){
+  const t = {};
+  for (const k in BALLOON_WORDS) t[k] = wordScore(text, BALLOON_WORDS[k]);
+  if (/([぀-ヿ])[、,\s]\1/.test(text)) t.tremble = c01(t.tremble + 0.7);
+  return t;
+}
+function classify(f, text){
+  const z = zOf(f), t = textCues(text || "");
+  let best = "normal", bestMargin = 0;
+  const scores = {};
+  for (const k in BALLOON_RULES){
+    scores[k] = BALLOON_RULES[k].f(z, t, S.sw) - BALLOON_RULES[k].th;
+    if (scores[k] > bestMargin){ bestMargin = scores[k]; best = k; }
+  }
+  S.bScore = scores;
+  S.lastZ = z; S.lastZt = performance.now();
+  return best;
+}
+
+/* ===================== 場面推定・構図 ===================== */
+function updateScene(now){
+  const decayV = Math.exp(-(now - S.lastZt)/6000);
+  const z = S.lastZ || { avg:0, peak:0, sd:0, jitter:0, st:0 };
+  const v = {
+    surprise: decayV*(0.5*c01((z.peak-1)/1.5) + 0.5*c01((z.st-1)/1.5)),
+    joy:      decayV*c01((z.sd + 0.5*z.st)/2),
+    tension:  decayV*c01((z.avg + z.peak)/3),
+    gloom:    decayV*c01((-z.avg - z.sd - 0.5*z.st)/3),
+  };
+  const decayT = Math.exp(-(now - S.sceneTxtT)/8000);
+  const t = {}; for (const k in S.sceneTxt) t[k] = S.sceneTxt[k]*decayT;
+  const m = { motion:c01((S.motion - 0.8)/1.5), dark:c01((0.35 - S.luma)/0.2) };
+  for (const k of SCENE_KEYS) S.sScore[k] = c01(SCENE_RULES[k](S.faceScore, v, t, m));
+
+  let next = S.scene;
+  if (S.smode !== "auto") next = S.smode;
+  else {
+    let best = S.scene, bestS = S.sScore[S.scene];
+    for (const k of SCENE_KEYS) if (S.sScore[k] > bestS + 0.1){ best = k; bestS = S.sScore[k]; }
+    const dwell = now - S.sceneSince;
+    const minHold = S.scene === "surprise" ? 2500 : 2000;
+    if (best !== S.scene && (dwell > minHold || (best === "surprise" && dwell > 800))) next = best;
+  }
+  if (next !== S.scene){ S.scene = next; S.sceneSince = now; }
+  for (const k of SCENE_KEYS) S.sw[k] = lerp(S.sw[k], k === S.scene ? 1 : 0, 0.08);
+}
+function updateView(){
+  const sc = SCENES[S.scene], k = 0.08;
+  for (const key in sc.win) S.P[key] = lerp(S.P[key], sc.win[key], k);
+  S.contrast = lerp(S.contrast, sc.contrast, k);
+  S.bright = lerp(S.bright, sc.bright, k);
+  S.eyeS = [lerp(S.eyeS[0], sc.eye[0], k), lerp(S.eyeS[1], sc.eye[1], k)];
+  // 構図：場面ごとの目標位置と大きさ（なければ実際の顔を追う）
+  const baseR = Math.max(S.size*0.8, 1);
+  let tx, ty, tz;
+  if (sc.layout){ tx = sc.layout.x*W; ty = sc.layout.y*H; tz = sc.layout.r*H/baseR; }
+  else { tx = offX + camW - S.fcx; ty = S.fcy; tz = sc.zoom; }
+  tz = clamp(tz, 0.6, 3);
+  const kv = sc.layout ? 0.07 : 0.3;      // 実際の顔を追うときは速く、構図に入るときはゆっくり
+  S.vx = lerp(S.vx, tx, kv); S.vy = lerp(S.vy, ty, kv); S.vz = lerp(S.vz, tz, 0.07);
+  S.cx = S.vx; S.cy = S.vy;
+  S.R = lerp(S.R, baseR*S.vz*(1 + S.level*0.1), 0.2);
+  if (S.kp){ const m = camToOut(S.kp.mouth[0], S.kp.mouth[1]); S.mx = m[0]; S.my = m[1]; }
+}
+
+function radius(th, t){
+  const P = S.P, a = th - P.tilt;
+  const box = 1/Math.max(Math.abs(Math.cos(a))/P.ax, Math.abs(Math.sin(a))/P.ay);
+  let r = lerp(1, box, P.square);
+  const nz = 0.5*Math.sin(3*th + t*1.1) + 0.3*Math.sin(5*th - t*0.8 + 1.3) + 0.2*Math.sin(8*th + t*1.7 + 2.1);
+  r *= 1 + P.blob*0.15*nz;
+  return S.R*r;
+}
+function windowPath(ctx, t, scale=1){
+  const N = 200;
+  ctx.beginPath();
+  for (let i=0;i<=N;i++){
+    const th = i/N*2*Math.PI, r = radius(th, t)*scale;
+    const x = S.cx + r*Math.cos(th), y = S.cy + r*Math.sin(th);
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  }
+  ctx.closePath();
+}
+
+/* ===================== 場面の背景 ===================== */
+function drawFocusLines(ctx, seed){
+  const r = rng(seed), N = 150, far = Math.hypot(W,H);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#111";
+  for (let i=0;i<N;i++){
+    if (r() < 0.15) continue;
+    const th = i/N*Math.PI*2 + r()*0.03, inner = S.R*(1.3 + r()*0.7), w = 0.004 + r()*0.012;
+    ctx.beginPath();
+    ctx.moveTo(S.cx + far*Math.cos(th-w), S.cy + far*Math.sin(th-w));
+    ctx.lineTo(S.cx + inner*Math.cos(th), S.cy + inner*Math.sin(th));
+    ctx.lineTo(S.cx + far*Math.cos(th+w), S.cy + far*Math.sin(th+w));
+    ctx.fill();
+  }
+}
+function drawBetaFlash(ctx, seed){
+  const r = rng(seed), far = Math.hypot(W,H);
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+  const core = S.R*1.25;
+  const g = ctx.createRadialGradient(S.cx, S.cy, core*0.6, S.cx, S.cy, core*1.35);
+  g.addColorStop(0, "#fff"); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(S.cx, S.cy, core*1.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  for (let i=0;i<90;i++){
+    const th = i/90*Math.PI*2 + r()*0.05, len = core + far*(0.15 + r()*0.55), w = 0.01 + r()*0.03;
+    ctx.beginPath();
+    ctx.moveTo(S.cx + core*0.9*Math.cos(th-w), S.cy + core*0.9*Math.sin(th-w));
+    ctx.lineTo(S.cx + len*Math.cos(th), S.cy + len*Math.sin(th));
+    ctx.lineTo(S.cx + core*0.9*Math.cos(th+w), S.cy + core*0.9*Math.sin(th+w));
+    ctx.fill();
+  }
+  const lg = ctx.createLinearGradient(0,0,0,H*0.6);
+  lg.addColorStop(0, "rgba(0,0,0,0.55)"); lg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = lg; ctx.fillRect(0,0,W,H);
+}
+const bubbles = [];
+function drawJoyBg(ctx, t){
+  ctx.drawImage(LAYERS.joy, 0, 0);
+  ctx.save();
+  ctx.strokeStyle = "rgba(90,90,90,0.55)"; ctx.lineWidth = 1.2;
+  for (let i=0;i<48;i++){
+    const th = i/48*Math.PI*2 + t*0.05, a = S.R*1.3, b = S.R*(1.9 + 0.5*Math.sin(i*2.3));
+    ctx.beginPath();
+    ctx.moveTo(S.cx + a*Math.cos(th), S.cy + a*Math.sin(th));
+    ctx.lineTo(S.cx + b*Math.cos(th), S.cy + b*Math.sin(th));
+    ctx.stroke();
+  }
+  ctx.restore();
+  while (bubbles.length < 14) bubbles.push({ x:Math.random()*W, y:Math.random()*H*1.4, r:H*(0.012 + Math.random()*0.03), v:H*(0.0006 + Math.random()*0.0012), ph:Math.random()*6 });
+  for (const b of bubbles){
+    b.y -= b.v*16; b.x += Math.sin(t*1.2 + b.ph)*0.3;
+    if (b.y < -b.r*2){ b.y = H + b.r*2; b.x = Math.random()*W; }
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.fill();
+    ctx.strokeStyle = "rgba(60,60,60,0.7)"; ctx.lineWidth = 1.1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(b.x - b.r*0.35, b.y - b.r*0.35, b.r*0.28, Math.PI*1.1, Math.PI*1.7); ctx.stroke();
+  }
+}
+function drawGloomBg(ctx){
+  ctx.drawImage(LAYERS.gloom, 0, 0);
+  ctx.strokeStyle = "rgba(0,0,0,0.6)";
+  for (const l of LAYERS.tare){
+    ctx.lineWidth = l.w;
+    ctx.beginPath(); ctx.moveTo(l.x, 0); ctx.lineTo(l.x, l.len); ctx.stroke();
+  }
+}
+function drawSceneBg(ctx, key, t){
+  switch(key){
+    case "calm":     ctx.drawImage(LAYERS.calm, 0, 0); break;
+    case "surprise": drawFocusLines(ctx, 1000 + Math.floor(S.frameNo/6)); break;
+    case "joy":      drawJoyBg(ctx, t); break;
+    case "tension":  drawBetaFlash(ctx, 2000 + Math.floor(S.frameNo/8)); break;
+    case "gloom":    drawGloomBg(ctx); break;
+  }
+}
+
+/* ===================== 前景の効果・漫符 ===================== */
+function drawSoftLight(ctx, w){
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const g = ctx.createRadialGradient(S.cx, S.cy - S.R*0.2, S.R*0.1, S.cx, S.cy, S.R*1.8);
+  g.addColorStop(0, `rgba(255,255,255,${0.3*w})`); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+function drawSparkles(ctx, t, w){
+  const r = rng(424242);
+  ctx.save();
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
+  for (let i=0;i<10;i++){
+    const th = r()*Math.PI*2, d = S.R*(1.05 + r()*0.7);
+    const x = S.cx + d*Math.cos(th), y = S.cy + d*Math.sin(th);
+    const s = S.R*0.08*(0.5 + 0.5*Math.sin(t*3 + i*1.7))*w;
+    if (s < 1) continue;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*2); ctx.quadraticCurveTo(x, y, x + s*2, y);
+    ctx.quadraticCurveTo(x, y, x, y + s*2); ctx.quadraticCurveTo(x, y, x - s*2, y);
+    ctx.quadraticCurveTo(x, y, x, y - s*2);
+    ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawForeheadLines(ctx, w){
+  const top = S.cy - S.R*0.95, bot = S.cy - S.R*0.25;
+  const g = ctx.createLinearGradient(0, top, 0, bot);
+  g.addColorStop(0, `rgba(0,0,0,${0.75*w})`); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.save();
+  ctx.strokeStyle = g;
+  const r = rng(99);
+  for (let x = S.cx - S.R*0.6; x < S.cx + S.R*0.6; x += S.R*0.06){
+    ctx.lineWidth = 1 + r()*1.2;
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot - r()*S.R*0.3); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawNoise(ctx, w){
+  ctx.save(); ctx.globalAlpha = w;
+  ctx.drawImage(LAYERS.noise[S.frameNo % 3], 0, 0, W, H);
+  ctx.restore();
+}
+/* 線画の顔に描き足す：瞳のハイライト・小さな鼻・漫符 */
+function drawFaceMarks(ctx, t){
+  const k = S.kp; if (!k) return;
+  const z = S.vz, a = S.vis;
+  ctx.save(); ctx.globalAlpha = a;
+  if (S.faceStyle === "lineart" || S.faceStyle === "clean"){
+    const d = S.deform, es = [1 + d/0.7*(S.eyeS[0]-1), 1 + d/0.7*(S.eyeS[1]-1)];
+    // キャッチライト
+    for (const [iris, eye] of [[k.irisL, k.eyeL], [k.irisR, k.eyeR]]){
+      const ix = eye[0] + (iris[0] - eye[0])*es[0], iy = eye[1] + (iris[1] - eye[1])*es[1];
+      const [ox, oy] = camToOut(ix, iy);
+      const r = k.irisRad*z*es[0];
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.ellipse(ox - r*0.3, oy - r*0.35, r*0.34, r*0.28, -0.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ox + r*0.32, oy + r*0.3, r*0.13, 0, Math.PI*2); ctx.fill();
+    }
+    // 小さな鼻の影
+    const [nx, ny] = camToOut(k.nose[0], k.nose[1]);
+    const ns = S.size*0.05*z;
+    ctx.strokeStyle = "#222"; ctx.lineWidth = Math.max(1.2, ns*0.18); ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(nx + ns*0.35, ny - ns*0.9); ctx.quadraticCurveTo(nx + ns*0.6, ny, nx + ns*0.1, ny + ns*0.25); ctx.stroke();
+  }
+  // 漫符
+  ctx.strokeStyle = "#111"; ctx.lineCap = "round";
+  if (S.sw.joy > 0.3){
+    ctx.globalAlpha = a*S.sw.joy;
+    ctx.lineWidth = Math.max(1.2, S.size*z*0.008);
+    for (const cp of [k.cheekL, k.cheekR]){
+      const [x, y] = camToOut(cp[0], cp[1]);
+      const L = S.size*z*0.07;
+      for (let i=-2;i<=2;i++){
+        ctx.beginPath(); ctx.moveTo(x + i*L*0.35 - L*0.3, y + L*0.35); ctx.lineTo(x + i*L*0.35 + L*0.3, y - L*0.35); ctx.stroke();
+      }
+    }
+  }
+  if (S.sw.tension > 0.3){
+    ctx.globalAlpha = a*S.sw.tension;
+    const [x, y] = camToOut(k.foreR[0], k.foreR[1] - S.size*0.08);
+    const s = S.size*z*0.11*(1 + 0.08*Math.sin(t*10));
+    ctx.lineWidth = Math.max(2, s*0.18);
+    for (let q=0;q<4;q++){
+      const ang = q*Math.PI/2 + Math.PI/4;
+      const cx = x + Math.cos(ang)*s*0.55, cy = y + Math.sin(ang)*s*0.55;
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(5, s*0.42);
+      ctx.beginPath(); ctx.arc(cx, cy, s*0.42, ang + Math.PI*0.7, ang + Math.PI*1.3); ctx.stroke();
+      ctx.strokeStyle = "#111"; ctx.lineWidth = Math.max(2, s*0.18);
+      ctx.beginPath(); ctx.arc(cx, cy, s*0.42, ang + Math.PI*0.7, ang + Math.PI*1.3); ctx.stroke();
+    }
+  }
+  if (S.sw.surprise > 0.3){
+    ctx.globalAlpha = a*S.sw.surprise;
+    const [x, y] = camToOut(k.templeR[0] - S.size*0.02, k.templeR[1] - S.size*0.12);
+    const s = S.size*z*0.06;
+    ctx.fillStyle = "#fff"; ctx.lineWidth = Math.max(1.4, s*0.12);
+    ctx.beginPath(); ctx.moveTo(x, y - s*1.2);
+    ctx.quadraticCurveTo(x + s*0.75, y + s*0.1, x, y + s*0.55);
+    ctx.quadraticCurveTo(x - s*0.75, y + s*0.1, x, y - s*1.2);
+    ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ===================== ペン画（輪郭と特徴点の上にマジックの線を描く） ===================== */
+/* 領域分割のクラス：0 背景, 1 髪, 2 体の肌, 3 顔の肌, 4 服, 5 その他 */
+const SEG_CLS = { hair:1, body:2, face:3, cloth:4 };
+const PEN = {
+  ema: 0.4,        // 分割結果の時間方向のならし（新しい値の重み）
+  iso: 0.5,        // 等高線を引く確信度
+  rdp: 0.7,        // 点の間引き（マスクの画素）
+  minLoop: 28,     // これより短い輪郭は捨てる（マスクの画素）
+  minRun: 10,      // 分割したあとの線の最短長
+  other: 0.35,     // 他のクラスの確信度がこれを超える所は重複とみなして描かない
+};
+const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+const BROW_L = [70,63,105,66,107], BROW_R = [336,296,334,293,300];
+const LID_L = [33,160,159,158,133], LID_R = [362,385,386,387,263];
+const MOUTH_IN = [78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95];
+
+function onSegment(res){
+  const ms = res.confidenceMasks;
+  if (!ms || ms.length < 5) return;
+  const w = ms[0].width, h = ms[0].height;
+  if (!S.seg || S.segW !== w || S.segH !== h){
+    S.seg = {}; S.segW = w; S.segH = h;
+    for (const k in SEG_CLS) S.seg[k] = new Float32Array(w*h);
+  }
+  for (const k in SEG_CLS){
+    const a = ms[SEG_CLS[k]].getAsFloat32Array(), dst = S.seg[k];
+    for (let i=0;i<a.length;i++) dst[i] += (a[i] - dst[i])*PEN.ema;
+  }
+  buildPenPaths();
+}
+
+/* マーチングスクエア：周囲を0で囲んで、すべての輪郭が閉じたループになるようにする */
+function contours(f, w, h, iso){
+  const W1 = w + 2, H1 = h + 2;
+  const v = (i, j) => (i < 1 || j < 1 || i > w || j > h) ? 0 : f[(j-1)*w + (i-1)];
+  const pts = new Map(), adj = new Map();
+  const ek = (i, j, vert) => ((j*W1 + i) << 1) | vert;
+  const point = (key, ax, ay, va, bx, by, vb) => {
+    if (!pts.has(key)){ const t = (iso - va)/((vb - va) || 1e-6); pts.set(key, [ax + (bx-ax)*t - 1, ay + (by-ay)*t - 1]); }
+  };
+  const link = (a, b) => {
+    if (!adj.has(a)) adj.set(a, []); if (!adj.has(b)) adj.set(b, []);
+    adj.get(a).push(b); adj.get(b).push(a);
+  };
+  for (let j=0;j<H1-1;j++){
+    for (let i=0;i<W1-1;i++){
+      const tl = v(i,j), tr = v(i+1,j), br = v(i+1,j+1), bl = v(i,j+1);
+      const c = (tl>=iso?8:0) | (tr>=iso?4:0) | (br>=iso?2:0) | (bl>=iso?1:0);
+      if (c === 0 || c === 15) continue;
+      const T = ek(i,j,0), B = ek(i,j+1,0), L = ek(i,j,1), R = ek(i+1,j,1);
+      const need = { [T]:()=>point(T,i,j,tl,i+1,j,tr), [B]:()=>point(B,i,j+1,bl,i+1,j+1,br),
+                     [L]:()=>point(L,i,j,tl,i,j+1,bl), [R]:()=>point(R,i+1,j,tr,i+1,j+1,br) };
+      const seg = (a, b) => { need[a](); need[b](); link(a, b); };
+      switch(c){
+        case 1: case 14: seg(L,B); break;
+        case 2: case 13: seg(B,R); break;
+        case 3: case 12: seg(L,R); break;
+        case 4: case 11: seg(T,R); break;
+        case 6: case 9:  seg(T,B); break;
+        case 7: case 8:  seg(L,T); break;
+        case 5:  seg(L,T); seg(B,R); break;
+        case 10: seg(T,R); seg(L,B); break;
+      }
+    }
+  }
+  const loops = [], seen = new Set();
+  for (const start of adj.keys()){
+    if (seen.has(start)) continue;
+    const loop = []; let prev = -1, cur = start;
+    while (cur !== undefined && !seen.has(cur)){
+      seen.add(cur); loop.push(pts.get(cur));
+      const nb = adj.get(cur);
+      const next = nb[0] !== prev ? nb[0] : nb[1];
+      prev = cur; cur = next;
+    }
+    if (loop.length > 2) loops.push(loop);
+  }
+  return loops;
+}
+/* Ramer–Douglas–Peucker による点の間引き */
+function rdp(pts, eps){
+  if (pts.length < 3) return pts;
+  const [ax, ay] = pts[0], [bx, by] = pts[pts.length-1];
+  const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+  let max = 0, idx = 0;
+  for (let i=1;i<pts.length-1;i++){
+    const d = Math.abs(dy*pts[i][0] - dx*pts[i][1] + bx*ay - by*ax)/len;
+    if (d > max){ max = d; idx = i; }
+  }
+  if (max <= eps) return [pts[0], pts[pts.length-1]];
+  const a = rdp(pts.slice(0, idx+1), eps), b = rdp(pts.slice(idx), eps);
+  return a.slice(0, -1).concat(b);
+}
+/* 閉じたループは、始点から最も遠い点で2つに分けてから間引く */
+function rdpClosed(loop, eps){
+  let far = 0, k = 0;
+  for (let i=1;i<loop.length;i++){ const d = Math.hypot(loop[i][0]-loop[0][0], loop[i][1]-loop[0][1]); if (d > far){ far = d; k = i; } }
+  const a = rdp(loop.slice(0, k+1), eps), b = rdp(loop.slice(k).concat([loop[0]]), eps);
+  return a.slice(0, -1).concat(b.slice(0, -1));
+}
+/* Chaikin の角切りで曲線をなめらかに */
+function chaikin(pts, closed, iter=2){
+  let p = pts;
+  for (let k=0;k<iter;k++){
+    const q = [], n = p.length;
+    if (!closed) q.push(p[0]);
+    for (let i=0;i<(closed ? n : n-1);i++){
+      const a = p[i], b = p[(i+1)%n];
+      q.push([a[0]*0.75 + b[0]*0.25, a[1]*0.75 + b[1]*0.25], [a[0]*0.25 + b[0]*0.75, a[1]*0.25 + b[1]*0.75]);
+    }
+    if (!closed) q.push(p[n-1]);
+    p = q;
+  }
+  return p;
+}
+const perim = (p, closed) => { let s = 0; for (let i=1;i<p.length;i++) s += Math.hypot(p[i][0]-p[i-1][0], p[i][1]-p[i-1][1]); if (closed && p.length > 1) s += Math.hypot(p[0][0]-p[p.length-1][0], p[0][1]-p[p.length-1][1]); return s; };
+/* ループを「描く点」の連続部分に分ける（重複する境目や画面の縁を除く） */
+function splitRuns(loop, keep){
+  const n = loop.length, flags = loop.map(keep);
+  if (flags.every(Boolean)) return [{ pts:loop, closed:true }];
+  let s = flags.findIndex(f => !f);
+  const runs = []; let run = [];
+  for (let k=1;k<=n;k++){
+    const i = (s + k) % n;
+    if (flags[i]) run.push(loop[i]);
+    else if (run.length){ runs.push({ pts:run, closed:false }); run = []; }
+  }
+  if (run.length) runs.push({ pts:run, closed:false });
+  return runs;
+}
+function buildPenPaths(){
+  const w = S.segW, h = S.segH, sg = S.seg;
+  const at = (arr, p) => { const x = Math.round(p[0]), y = Math.round(p[1]);
+    return (x < 0 || y < 0 || x >= w || y >= h) ? 0 : arr[y*w + x]; };
+  const inside = p => p[0] > 1.5 && p[1] > 1.5 && p[0] < w - 2.5 && p[1] < h - 2.5;
+  const prep = loop => chaikin(rdpClosed(loop, PEN.rdp), true);
+  const strokes = [], hairFill = [];
+  const add = (runs) => {
+    for (const r of runs){
+      if (perim(r.pts, r.closed) < (r.closed ? PEN.minLoop : PEN.minRun)) continue;
+      strokes.push({ pts: r.closed ? r.pts : chaikin(r.pts, false, 1), closed:r.closed });
+    }
+  };
+  // 髪：外形と前髪の生え際
+  for (const L of contours(sg.hair, w, h, PEN.iso)){
+    if (perim(L, true) < PEN.minLoop) continue;
+    const p = prep(L);
+    hairFill.push(p);
+    add(splitRuns(p, inside));
+  }
+  // 顔（耳を含む）：髪との境目は髪の線にまかせる
+  for (const L of contours(sg.face, w, h, PEN.iso)){
+    if (perim(L, true) < PEN.minLoop) continue;
+    add(splitRuns(prep(L), p => inside(p) && at(sg.hair, p) < PEN.other));
+  }
+  if (S.penBody){
+    // 服：肩の外形と襟
+    for (const L of contours(sg.cloth, w, h, PEN.iso)){
+      if (perim(L, true) < PEN.minLoop) continue;
+      add(splitRuns(prep(L), p => inside(p) && at(sg.hair, p) < PEN.other && at(sg.face, p) < PEN.other));
+    }
+    // 首と手：服・顔・髪との境目は描かず、背景との境目だけ
+    for (const L of contours(sg.body, w, h, PEN.iso)){
+      if (perim(L, true) < PEN.minLoop) continue;
+      add(splitRuns(prep(L), p => inside(p) && at(sg.hair, p) < PEN.other && at(sg.face, p) < PEN.other && at(sg.cloth, p) < PEN.other));
+    }
+  }
+  S.pen = { strokes, hairFill, sx:camW/w, sy:H/h };
+}
+
+/* なめらかな線（中点を通る2次ベジェ）で描く */
+function smoothStroke(ctx, pts, closed){
+  const n = pts.length;
+  if (n < 2) return;
+  ctx.beginPath();
+  if (closed && n > 2){
+    const m0 = [(pts[n-1][0]+pts[0][0])/2, (pts[n-1][1]+pts[0][1])/2];
+    ctx.moveTo(m0[0], m0[1]);
+    for (let i=0;i<n;i++){
+      const a = pts[i], b = pts[(i+1)%n];
+      ctx.quadraticCurveTo(a[0], a[1], (a[0]+b[0])/2, (a[1]+b[1])/2);
+    }
+    ctx.closePath();
+  } else {
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i=1;i<n-1;i++){
+      const a = pts[i], b = pts[i+1];
+      ctx.quadraticCurveTo(a[0], a[1], (a[0]+b[0])/2, (a[1]+b[1])/2);
+    }
+    ctx.lineTo(pts[n-1][0], pts[n-1][1]);
+  }
+  ctx.stroke();
+}
+function drawPen(ctx){
+  const lw = clamp(S.size*S.vz*0.013*S.penW, 1.4, 10);
+  const lmO = i => camToOut(S.lm[i][0], S.lm[i][1]);
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.strokeStyle = ctx.fillStyle = "#141414";
+  ctx.lineWidth = lw; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = lw*0.45;   // マジックのにじみ
+
+  // 輪郭（領域分割があればそれを、なければ顔の外周のランドマーク）
+  if (S.pen && S.segOK){
+    const toO = p => camToOut(p[0]*S.pen.sx, p[1]*S.pen.sy);
+    if (S.penHair === "fill" && S.pen.hairFill.length){
+      ctx.beginPath();
+      for (const L of S.pen.hairFill){ const q = L.map(toO); ctx.moveTo(q[0][0], q[0][1]); for (const p of q) ctx.lineTo(p[0], p[1]); ctx.closePath(); }
+      ctx.fill("evenodd");
+    }
+    for (const s of S.pen.strokes) smoothStroke(ctx, s.pts.map(toO), s.closed);
+  } else if (S.lm){
+    smoothStroke(ctx, FACE_OVAL.map(lmO), true);
+  }
+
+  if (S.lm){
+    const raw = n => S.bsRaw[n] || 0;
+    const d = S.deform;
+    // 眉：1本の線
+    smoothStroke(ctx, BROW_L.map(lmO), false);
+    smoothStroke(ctx, BROW_R.map(lmO), false);
+    // 目：小さな点。まぶたを閉じたときは短い弧
+    for (const [iris, lid, blink] of [[468, LID_L, "eyeBlinkLeft"], [473, LID_R, "eyeBlinkRight"]]){
+      if (raw(blink) > 0.5 || S.lm.length <= 473) smoothStroke(ctx, lid.slice(1, -1).map(lmO), false);
+      else { const [x, y] = lmO(iris); ctx.beginPath(); ctx.arc(x, y, lw*(1.05 + 0.35*d), 0, Math.PI*2); ctx.fill(); }
+    }
+    // 鼻：鼻先から小鼻へのかぎ型。顔が横を向いたら鼻筋も
+    const x234 = S.lm[234][0], x454 = S.lm[454][0];
+    const yaw = (S.lm[1][0] - (x234 + x454)/2)/Math.max(Math.abs(x454 - x234), 1);
+    const alar = (yaw > 0) === (S.lm[98][0] < S.lm[327][0]) ? 98 : 327;
+    const nose = Math.abs(yaw) > 0.06 ? [6,197,195,5,4,1,2,alar] : [4,1,2,alar];
+    smoothStroke(ctx, nose.map(lmO), false);
+    // 口：閉じていれば短い1本線、開いていれば黒く塗った口
+    if (raw("jawOpen") > 0.22){
+      const q = MOUTH_IN.map(lmO);
+      ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); for (const p of q) ctx.lineTo(p[0], p[1]); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    } else {
+      const mid = (a, b) => { const A = lmO(a), B = lmO(b); return [(A[0]+B[0])/2, (A[1]+B[1])/2]; };
+      const L = lmO(78), R = lmO(308), C = mid(13, 14);
+      const pull = (p, k) => [p[0] + (C[0]-p[0])*k, p[1] + (C[1]-p[1])*k];
+      smoothStroke(ctx, [pull(L, 0.15), mid(81,178), C, mid(311,402), pull(R, 0.15)], false);
+    }
+  }
+  ctx.restore();
+}
+
+/* ===================== 描画（合成） ===================== */
+function draw(t){
+  // 1. 窓のマスク
+  mctx.clearRect(0,0,W,H);
+  mctx.filter = S.P.feather > 0.5 ? `blur(${S.P.feather.toFixed(1)}px)` : "none";
+  mctx.globalAlpha = S.vis; mctx.fillStyle = "#fff";
+  windowPath(mctx, t); mctx.fill();
+  if (S.P.blob > 0.4){ mctx.globalAlpha = S.vis*0.5*S.P.blob; windowPath(mctx, t*1.7 + 3); mctx.fill(); }
+  mctx.filter = "none"; mctx.globalAlpha = 1;
+
+  // 2. 顔：線画（WebGL）または写真を、構図の変換で配置して窓で切り抜く
+  let src = cam, filter = "none";
+  const pen = S.faceStyle === "pen";
+  if (!pen){
+    if ((S.faceStyle === "lineart" || S.faceStyle === "clean") && MG.ok && renderManga()) src = MG.c;
+    else filter = `grayscale(${S.faceStyle === "color" ? 0 : 1}) contrast(${S.contrast.toFixed(2)}) brightness(${S.bright.toFixed(2)})`;
+  }
+  fctx.globalCompositeOperation = "source-over";
+  fctx.setTransform(1,0,0,1,0,0);
+  fctx.fillStyle = "#fff"; fctx.fillRect(0,0,W,H);
+  if (pen) drawPen(fctx);
+  else {
+    fctx.filter = filter;
+    fctx.setTransform(-S.vz, 0, 0, S.vz, S.vx + S.vz*S.fcx, S.vy - S.vz*S.fcy);
+    fctx.drawImage(src, 0, 0, camW, H);
+    fctx.setTransform(1,0,0,1,0,0);
+    fctx.filter = "none";
+  }
+  fctx.globalCompositeOperation = "destination-in";
+  fctx.drawImage(mask, 0, 0);
+  fctx.globalCompositeOperation = "source-over";
+
+  // 3. 背景
+  octx.globalCompositeOperation = "source-over"; octx.globalAlpha = 1;
+  octx.fillStyle = "#fff"; octx.fillRect(0,0,W,H);
+  const order = SCENE_KEYS.filter(k => S.sw[k] > 0.01).sort((a,b) => S.sw[b] - S.sw[a]);
+  order.forEach((k, i) => {
+    xctx.globalAlpha = 1; xctx.globalCompositeOperation = "source-over";
+    drawSceneBg(xctx, k, t);
+    octx.globalAlpha = i === 0 ? 1 : S.sw[k];
+    octx.drawImage(fx, 0, 0);
+  });
+  octx.globalAlpha = 1;
+  const noiseW = 0.55*S.sw.gloom + 0.3*S.sw.tension;
+  if (noiseW > 0.02) drawNoise(octx, noiseW);
+
+  // 4. 顔と描き足し
+  octx.drawImage(face, 0, 0);
+  drawFaceMarks(octx, t);
+
+  // 5. 前景の効果
+  if (S.sw.joy > 0.02){ drawSoftLight(octx, S.sw.joy); drawSparkles(octx, t, S.sw.joy); }
+  if (S.sw.gloom > 0.02 && S.vis > 0.3) drawForeheadLines(octx, S.sw.gloom*S.vis);
+  if (noiseW > 0.02) drawNoise(octx, noiseW*0.25);
+
+  // 6. コマ枠
+  if (S.P.frame > 0.05 && S.vis > 0.05){
+    octx.save();
+    octx.globalAlpha = S.vis*c01(S.P.frame);
+    octx.lineJoin = "miter";
+    windowPath(octx, t);
+    octx.strokeStyle = "#fff"; octx.lineWidth = 9*S.P.frame; octx.stroke();
+    octx.strokeStyle = "#000"; octx.lineWidth = 3.2*S.P.frame; octx.stroke();
+    octx.restore();
+  }
+
+  // 7. 吹き出し
+  for (const b of balloons) drawBalloon(octx, b, t);
+}
+
+/* ===================== 音声認識 → 吹き出し ===================== */
+const balloons = [];
+let cur = null, rec = null, recOn = false;
+function initSpeech(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){ $("#srStatus").textContent = "音声認識：このブラウザは未対応です（Chromeで開いてください）"; return; }
+  rec = new SR();
+  rec.lang = "ja-JP"; rec.continuous = true; rec.interimResults = true;
+  rec.onstart = () => $("#srStatus").textContent = "音声認識：聞き取り中";
+  rec.onresult = e => {
+    for (let i=e.resultIndex; i<e.results.length; i++){
+      const r = e.results[i];
+      const text = r[0].transcript.trim();
+      if (!text) continue;
+      if (!cur || cur.final) cur = newBalloon();
+      cur.text = text;
+      probeFonts(text);
+      const st = {}; for (const k in SCENE_WORDS) st[k] = wordScore(text, SCENE_WORDS[k]);
+      S.sceneTxt = st; S.sceneTxtT = performance.now();
+      if (r.isFinal){
+        cur.final = true; cur.finalAt = performance.now();
+        const f = features(cur.start - 800);
+        if (S.bmode === "auto") cur.type = classify(f, text);
+        if (f){ S.hist.push(f); if (S.hist.length > TUNE.histMax) S.hist.shift(); }
+        $("#calib").textContent = `話者の基準：${S.hist.length}発話ぶん学習済み`;
+      }
+    }
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed"){
+      recOn = false; $("#srStatus").textContent = "音声認識：マイクの使用が許可されていません";
+    }
+  };
+  rec.onend = () => { if (recOn){ try{ rec.start(); }catch{} } };
+  recOn = true;
+  try{ rec.start(); }catch{}
+}
+function newBalloon(){
+  const now = performance.now();
+  const b = { text:"", type:"normal", final:false, start:now, finalAt:0, lastClass:0,
+              seed:Math.floor(Math.random()*1e9), alpha:0, x:null, y:null };
+  for (let i=S.frames.length-1;i>=0;i--){
+    const f = S.frames[i];
+    if (now - f.t > 3000) break;
+    if (f.voiced) b.start = f.t;
+  }
+  balloons.push(b);
+  return b;
+}
+function probeFonts(text){ document.querySelectorAll("#fontProbe span").forEach(s => s.textContent = text); }
+function updateBalloons(now){
+  for (const b of balloons){
+    if (!b.final && b === cur && S.bmode === "auto" && now - b.lastClass > 200){
+      b.lastClass = now;
+      const f = features(b.start - 800);
+      if (f) b.type = classify(f, b.text);
+    }
+    if (S.bmode !== "auto") b.type = S.bmode;
+    const alive = b === balloons[balloons.length-1] && (!b.final || now - b.finalAt < TUNE.holdMs);
+    b.alpha = lerp(b.alpha, alive ? 1 : 0, alive ? 0.25 : 0.12);
+  }
+  while (balloons.length > 1 && balloons[0].alpha < 0.01) balloons.shift();
+  const last = balloons[balloons.length-1];
+  if (last && last.final && now - last.finalAt > TUNE.holdMs + 1500) balloons.pop();
+}
+
+/* ===================== 縦書きの組版 ===================== */
+const ROT    = new Set([..."ー－―‐…‥〜～（）「」『』【】〔〕［］｛｝＜＞＝"]);
+const PUNCT  = new Set([..."、。，．"]);
+const SMALL  = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
+const NOHEAD = new Set([..."、。，．」』）】〕ーぁぃぅぇぉっゃゅょァィゥェォッャュョ！？…‥"]);
+const toFull = s => s.replace(/[!-~]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0)).replace(/ /g, "");
+function layoutVertical(text, perCol, maxCols){
+  const cols = []; let col = [];
+  for (const c of Array.from(toFull(text))){
+    if (col.length >= perCol){
+      if (NOHEAD.has(c)){ col.push(c); cols.push(col); col = []; continue; }
+      cols.push(col); col = [];
+    }
+    col.push(c);
+  }
+  if (col.length) cols.push(col);
+  return cols.slice(-maxCols);
+}
+
+/* ===================== 吹き出しの描画 ===================== */
+function drawBalloon(ctx, b, t){
+  if (!b.text || b.alpha < 0.01) return;
+  const spec = BALLOONS[b.type];
+  const fs = Math.round(H/480*24*spec.size);
+  const perCol = clamp(Math.floor(H*0.42/fs), 4, 14);
+  const cols = layoutVertical(b.text, perCol, b.type === "shout" ? 4 : 5);
+  const lineW = fs*1.4, rows = Math.max(...cols.map(c => c.length));
+  const blockW = cols.length*lineW, blockH = rows*fs;
+  let rx = blockW/2*1.38 + fs*0.7, ry = blockH/2*1.3 + fs*0.7;
+  if (b.type === "shout"){ rx *= 1.12; ry *= 1.1; }
+
+  const half = S.R*Math.max(1, S.P.ax*S.P.square + (1 - S.P.square));
+  const faceL = S.cx - half, faceR = S.cx + half;
+  const side = (W - faceR) >= faceL ? 1 : -1;
+  const reach = b.type === "shout" ? 1.45 : 1.25;
+  let tx = side > 0 ? faceR + rx*reach*0.6 + 14 : faceL - rx*reach*0.6 - 14;
+  let ty = S.cy - S.R*0.35;
+  tx = clamp(tx, rx + 8, W - rx - 8); ty = clamp(ty, ry + 8, H - ry - 8);
+  if (b.x === null){ b.x = tx; b.y = ty; }
+  b.x = lerp(b.x, tx, 0.15); b.y = lerp(b.y, ty, 0.15);
+  const bx = b.x, by = b.y;
+
+  const ang = Math.atan2(S.my - by, S.mx - bx);
+  const edge = th => [bx + rx*Math.cos(th), by + ry*Math.sin(th)];
+  const [ex, ey] = edge(ang);
+  const dist = Math.hypot(S.mx - ex, S.my - ey);
+  const tailLen = clamp(dist - S.R*0.55, fs*0.9, fs*(b.type === "shout" ? 3.2 : 2.4));
+  const tipX = ex + Math.cos(ang)*tailLen, tipY = ey + Math.sin(ang)*tailLen;
+
+  const body = new Path2D(), tail = new Path2D();
+  const rand = rng(b.seed);
+  ctx.save();
+  ctx.globalAlpha = b.alpha;
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, fs*0.11);
+  ctx.setLineDash([]);
+
+  if (b.type === "normal"){
+    body.ellipse(bx, by, rx, ry, 0, 0, Math.PI*2);
+    const [ax, ay] = edge(ang - 0.2), [cx2, cy2] = edge(ang + 0.2);
+    tail.moveTo(ax, ay);
+    tail.quadraticCurveTo((ax+tipX)/2 + Math.sin(ang)*fs*0.3, (ay+tipY)/2 - Math.cos(ang)*fs*0.3, tipX, tipY);
+    tail.lineTo(cx2, cy2); tail.closePath();
+  } else if (b.type === "shout"){
+    const N = 18 + Math.floor(rand()*6);
+    ctx.lineJoin = "miter"; ctx.lineWidth = Math.max(2.5, fs*0.1);
+    for (let k=0;k<N;k++){
+      const th = k/N*Math.PI*2 + rand()*0.08, thIn = (k+0.5)/N*Math.PI*2, o = 1.16 + rand()*0.26;
+      const ox = bx + rx*o*Math.cos(th), oy = by + ry*o*Math.sin(th);
+      k ? body.lineTo(ox, oy) : body.moveTo(ox, oy);
+      body.lineTo(bx + rx*0.96*Math.cos(thIn), by + ry*0.96*Math.sin(thIn));
+    }
+    body.closePath();
+    const [ax, ay] = edge(ang - 0.12), [cx2, cy2] = edge(ang + 0.12);
+    tail.moveTo(ax, ay); tail.lineTo(tipX, tipY); tail.lineTo(cx2, cy2); tail.closePath();
+  } else if (b.type === "whisper"){
+    body.ellipse(bx, by, rx, ry, 0, 0, Math.PI*2);
+    const [ax, ay] = edge(ang - 0.18), [cx2, cy2] = edge(ang + 0.18);
+    tail.moveTo(ax, ay); tail.lineTo(tipX, tipY); tail.lineTo(cx2, cy2); tail.closePath();
+    ctx.lineWidth = Math.max(1.4, fs*0.09);
+    ctx.setLineDash([fs*0.35, fs*0.3]);
+  } else if (b.type === "tremble"){
+    const waves = Math.round((rx + ry)/(fs*0.55)), amp = fs*0.12;
+    for (let i=0;i<=240;i++){
+      const th = i/240*Math.PI*2, w = 1 + (amp/Math.max(rx,ry))*Math.sin(waves*th + t*9);
+      const x = bx + rx*w*Math.cos(th), y = by + ry*w*Math.sin(th);
+      i ? body.lineTo(x, y) : body.moveTo(x, y);
+    }
+    body.closePath();
+    const [ax, ay] = edge(ang - 0.18), [cx2, cy2] = edge(ang + 0.18);
+    tail.moveTo(ax, ay); tail.lineTo(tipX + Math.sin(t*23)*fs*0.08, tipY); tail.lineTo(cx2, cy2); tail.closePath();
+    ctx.lineWidth = Math.max(1.6, fs*0.08);
+  } else if (b.type === "mutter"){
+    const n = Math.max(9, Math.round(Math.PI*(rx+ry)/(fs*1.5)));
+    const pts = [];
+    for (let k=0;k<n;k++) pts.push(edge(k/n*Math.PI*2));
+    body.moveTo(pts[0][0], pts[0][1]);
+    for (let k=0;k<n;k++){
+      const p = pts[(k+1)%n], thM = (k+0.5)/n*Math.PI*2, bulge = 1.2 + (rand()-0.5)*0.06;
+      body.quadraticCurveTo(bx + rx*bulge*Math.cos(thM), by + ry*bulge*Math.sin(thM), p[0], p[1]);
+    }
+    body.closePath();
+  }
+
+  const lw = ctx.lineWidth, dash = ctx.getLineDash();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = lw + fs*0.45;
+  ctx.stroke(body); ctx.stroke(tail);
+  ctx.setLineDash(dash);
+  ctx.strokeStyle = "#111"; ctx.lineWidth = lw;
+  ctx.stroke(body); ctx.stroke(tail);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#fff";
+  ctx.fill(body); ctx.fill(tail);
+  if (b.type === "mutter"){
+    [0.42, 0.28, 0.17].forEach((r, i) => {
+      const k = (i+1)/3.4;
+      const px = ex + Math.cos(ang)*(tailLen*1.1*k + fs*0.4), py = ey + Math.sin(ang)*(tailLen*1.1*k + fs*0.4);
+      ctx.beginPath(); ctx.ellipse(px, py, fs*r*1.15, fs*r, 0, 0, Math.PI*2);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = lw + fs*0.3; ctx.stroke();
+      ctx.strokeStyle = "#111"; ctx.lineWidth = lw; ctx.stroke();
+      ctx.fill();
+    });
+  }
+
+  ctx.fillStyle = "#111";
+  ctx.font = `${spec.weight} ${fs}px ${spec.font}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const top = by - blockH/2 + fs/2;
+  cols.forEach((col, ci) => {
+    const x = bx + blockW/2 - lineW/2 - ci*lineW;
+    col.forEach((ch, j) => {
+      ctx.save();
+      let dx = 0, dy = 0;
+      if (b.type === "tremble"){ dx = Math.sin(t*31 + j*1.7 + ci)*fs*0.05; dy = Math.cos(t*27 + j)*fs*0.04; }
+      ctx.translate(x + dx, top + j*fs + dy);
+      if (ROT.has(ch)) ctx.rotate(Math.PI/2);
+      else if (PUNCT.has(ch)) ctx.translate(fs*0.55, -fs*0.55);
+      else if (SMALL.has(ch)) ctx.translate(fs*0.12, -fs*0.12);
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+    });
+  });
+  ctx.restore();
+}
+
+/* ===================== 設定パネルの表示 ===================== */
+const SCENE_LABEL = { calm:"日常", surprise:"驚き", joy:"喜び", tension:"緊張・怒り", gloom:"落ち込み" };
+const BAL_LABEL = { shout:"叫び", whisper:"小声", tremble:"震え", mutter:"つぶやき" };
+function buildBars(el, labels, color){
+  el.innerHTML = Object.entries(labels).map(([k,v]) =>
+    `<div class="meter" data-k="${k}"><span>${v}</span><div class="bar"><i style="background:${color}"></i></div><output>0</output></div>`).join("");
+}
+buildBars($("#sBars"), SCENE_LABEL, "var(--accent)");
+buildBars($("#bBars"), BAL_LABEL, "var(--warn)");
+
+let hudT = 0;
+function updateHud(now){
+  if (!$("#settings").open) return;
+  $("#lvBar").style.width = (S.level*100).toFixed(0) + "%";
+  $("#lvOut").textContent = (S.level*100).toFixed(0);
+  if (now - hudT < 150) return;
+  hudT = now;
+  const f = features(now - 2500);
+  const sdv = f && f.sd !== null ? f.sd : 0, jt = f && f.jitter !== null ? f.jitter : 0;
+  $("#inBar").style.width = clamp(sdv/6*100,0,100).toFixed(0) + "%";
+  $("#inOut").textContent = sdv.toFixed(1);
+  $("#jtBar").style.width = clamp(jt/2*100,0,100).toFixed(0) + "%";
+  $("#jtOut").textContent = jt.toFixed(2);
+  $("#f0Out").textContent = S.speaking && S.f0 ? S.f0.toFixed(0) + "Hz" : "—";
+  $("#sName").textContent = SCENES[S.scene].name + (S.smode === "auto" ? "" : "（手動）");
+  document.querySelectorAll("#sBars .meter").forEach(m => {
+    const v = S.sScore[m.dataset.k] || 0;
+    m.querySelector("i").style.width = (v*100).toFixed(0) + "%";
+    m.querySelector("output").textContent = v.toFixed(2);
+    m.classList.toggle("cur", m.dataset.k === S.scene);
+  });
+  document.querySelectorAll("#bBars .meter").forEach(m => {
+    const v = S.bScore[m.dataset.k] ?? 0;
+    m.querySelector("i").style.width = Math.round(c01((v + 1.5)/3)*100) + "%";
+    m.querySelector("output").textContent = (v >= 0 ? "+" : "") + v.toFixed(1);
+  });
+  const last = balloons[balloons.length-1];
+  if (last && last.text){
+    $("#bName").textContent = BALLOONS[last.type].name + (S.bmode === "auto" ? "" : "（手動）");
+    $("#said").textContent = last.text;
+  }
+}
+
+function pressGroup(sel, btn){ document.querySelectorAll(sel + " button").forEach(x => x.setAttribute("aria-pressed", x === btn)); }
+$("#smodes").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.smode = b.dataset.s; S.sceneSince = 0; pressGroup("#smodes", b); });
+$("#bmodes").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.bmode = b.dataset.b; pressGroup("#bmodes", b); });
+function syncStyleSliders(){
+  document.querySelectorAll("[data-for]").forEach(el => el.hidden = el.dataset.for !== S.faceStyle);
+}
+$("#faceStyle").addEventListener("change", e => { S.faceStyle = e.target.value; syncStyleSliders(); });
+$("#penW").addEventListener("input", e => S.penW = +e.target.value);
+$("#penHair").addEventListener("change", e => S.penHair = e.target.value);
+$("#penBody").addEventListener("change", e => { S.penBody = e.target.checked; if (S.seg) buildPenPaths(); });
+$("#cleanAmt").addEventListener("input", e => S.cleanT = 0.04 - 0.032*(+e.target.value));
+$("#cleanDark").addEventListener("input", e => S.cleanDark = +e.target.value);
+for (const id of ["deform","lineP","blackEps","toneTh","sens"]) $("#" + id).addEventListener("input", e => S[id] = +e.target.value);
+
+/* ポップアップの出し入れ */
+const setDlg = $("#settings"), helpDlg = $("#help");
+function toggleSettings(force){
+  const open = force ?? !setDlg.open;
+  if (open) setDlg.show(); else setDlg.close();
+  $("#setBtn").setAttribute("aria-expanded", open);
+}
+$("#setBtn").addEventListener("click", () => toggleSettings());
+$("#setClose").addEventListener("click", () => toggleSettings(false));
+setDlg.addEventListener("close", () => $("#setBtn").setAttribute("aria-expanded", false));
+$("#helpBtn").addEventListener("click", () => helpDlg.showModal());
+$("#helpClose").addEventListener("click", () => helpDlg.close());
+helpDlg.addEventListener("click", e => { if (e.target === helpDlg) helpDlg.close(); });
+document.addEventListener("keydown", e => {
+  if (["INPUT","SELECT"].includes(e.target.tagName) || helpDlg.open && e.key !== "h") return;
+  if (e.key === "Escape" && setDlg.open){ toggleSettings(false); return; }
+  if (e.key === "s"){ toggleSettings(); return; }
+  if (e.key === "h"){ helpDlg.open ? helpDlg.close() : helpDlg.showModal(); return; }
+  const sm = { "1":"auto", "2":"calm", "3":"surprise", "4":"joy", "5":"tension", "6":"gloom" }[e.key];
+  if (sm) document.querySelector(`#smodes button[data-s="${sm}"]`).click();
+  const bm = { "q":"auto", "w":"normal", "e":"shout", "r":"whisper", "t":"tremble", "y":"mutter" }[e.key];
+  if (bm) document.querySelector(`#bmodes button[data-b="${bm}"]`).click();
+});
+
+/* ===================== 通話（PeerJS / WebRTC） ===================== */
+function setStatus(msg, ok=false){ const el = $("#status"); el.textContent = msg; el.classList.toggle("ok", ok); }
+function initPeer(tries=0){
+  const id = "scd-" + Math.floor(1000 + Math.random()*9000);
+  peer = new Peer(id);
+  peer.on("open", id => { $("#myid").textContent = id; $("#callBtn").disabled = false; setStatus("待機中", true); });
+  peer.on("call", call => { call.answer(sendStream); bindCall(call); });
+  peer.on("error", e => {
+    if (e.type === "unavailable-id" && tries < 3){ peer.destroy(); initPeer(tries+1); return; }
+    if (e.type === "peer-unavailable") setStatus("その番号の相手が見つかりません");
+    else setStatus("接続エラー：" + e.type);
+  });
+}
+function bindCall(call){
+  if (currentCall) currentCall.close();
+  currentCall = call;
+  $("#hangBtn").disabled = false;
+  setStatus("呼び出し中…");
+  call.on("stream", s => {
+    const v = $("#remote"); v.srcObject = s; v.play().catch(() => {});
+    document.body.classList.add("in-call");
+    setStatus("通話中：" + call.peer, true);
+  });
+  call.on("close", endCall); call.on("error", endCall);
+}
+function endCall(){
+  document.body.classList.remove("in-call");
+  $("#remote").srcObject = null; $("#hangBtn").disabled = true; currentCall = null;
+  setStatus("通話を終了しました", true);
+}
+$("#callBtn").addEventListener("click", () => {
+  let to = $("#to").value.trim();
+  if (!to) return;
+  if (/^\d+$/.test(to)) to = "scd-" + to;
+  bindCall(peer.call(to, sendStream));
+});
+$("#hangBtn").addEventListener("click", () => { if (currentCall) currentCall.close(); endCall(); });
+$("#copyBtn").addEventListener("click", async () => {
+  try{ await navigator.clipboard.writeText($("#myid").textContent); $("#copyBtn").textContent = "コピー済"; }
+  catch{ getSelection().selectAllChildren($("#myid")); }
+  setTimeout(() => $("#copyBtn").textContent = "コピー", 1500);
+});
+</script>
+</body>
+</html>
